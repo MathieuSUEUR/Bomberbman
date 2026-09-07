@@ -1,0 +1,16 @@
+{
+  "name": "bomberman-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server/server.ts"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^7.0.2"
+  }
+}
