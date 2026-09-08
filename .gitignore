@@ -1,0 +1,85 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Output directories / Build artifacts
+dist/
+build/
+out/
+.output/
+release/
+*.exe
+*.app
+*.dmg
+*.deb
+*.rpm
+*.snap
+*.AppImage
+
+# Coverage directory used by testing tools (Vitest, Jest, c8, etc.)
+coverage/
+*.lcov
+.nyc_output/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Vite / Bundlers cache
+.vite/
+.parcel-cache/
+.turbo/
+
+# Editor and OS specific files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# IDEs
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+*.sublime-project
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary / Scratch files
+*.tmp
+*.temp
+scratch/
