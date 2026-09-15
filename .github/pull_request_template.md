@@ -1,12 +1,12 @@
 ## Description
 
-<!-- Résume en 2-3 phrases ce que fait cette PR -->
+Cette PR met en place les fichiers de gouvernance initiaux pour le dépôt. Elle ajoute le fichier CODEOWNERS afin d'imposer la validation par le pôle DevOps sur les répertoires sensibles (/server/ et /.github/). Elle introduit également ce template de Pull Request pour automatiser l'affichage de la checklist de qualité.
 
 ## Type de changement
 
 - [ ] feat (nouvelle fonctionnalité)
 - [ ] fix (correction de bug)
-- [ ] chore (maintenance, dépendances)
+- [x] chore (maintenance, dépendances)
 - [ ] docs (documentation)
 - [ ] refactor (sans changement de comportement)
 
@@ -16,21 +16,17 @@
 - [ ] Le lint passe (`npm run lint`)
 - [ ] Des tests ont été ajoutés ou mis à jour si nécessaire
 - [ ] Tous les tests passent en local (`npm test`)
-- [ ] La documentation a été mise à jour si nécessaire (README, protocole WebSocket, etc.)
-- [ ] Aucun `console.log` ou code de debug oublié
-- [ ] La PR cible bien `develop` (jamais `main` directement)
+- [x] La documentation a été mise à jour si nécessaire (README, protocole WebSocket, etc.)
+- [x] Aucun `console.log` ou code de debug oublié
+- [x] La PR cible bien `develop` (jamais `main` directement)
 
 ## Comment tester
 
-<!-- Étapes pour qu'un reviewer puisse vérifier le comportement -->
 
-1. 
-2. 
-3. 
 
-## Captures d'écran / logs (si pertinent)
-
-<!-- Optionnel : screenshots, extrait de logs, etc. -->
+1. Lire les modifications dans l'onglet "Files changed" pour s'assurer que les deux fichiers sont présents dans le dossier /.github/.
+2. Vérifier que les chemins /server/ et /.github/ sont correctement assignés à @MathieuSUEUR et @AlexisPonceyValdemar dans le fichier CODEOWNERS.
+3. Après la fusion de cette PR dans develop, simuler l'ouverture d'une nouvelle PR pour vérifier que ce template s'affiche automatiquement par défaut.
 
 ## Issues liées
 
