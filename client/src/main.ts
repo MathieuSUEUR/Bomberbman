@@ -1,29 +1,27 @@
-import './style.css'
-import typescriptLogo from './typescript.svg'
-import viteLogo from '/electron-vite.svg'
-import { setupCounter } from './counter.ts'
+import './style.css'; // Garde l'import CSS si tu en as un
+import { GameRenderer } from './view/GameRenderer';
+import { eventBus } from './core/EventBus';
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <div>
-    <a href="https://electron-vite.github.io" target="_blank">
-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://www.typescriptlang.org/" target="_blank">
-      <img src="${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
-    </a>
-    <h1>Vite + TypeScript</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite and TypeScript logos to learn more
-    </p>
-  </div>
-`
+// 1. On récupère notre Canvas dans le HTML
+const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+// On lui donne une taille
+canvas.width = 500;
+canvas.height = 500;
 
-// Use contextBridge
-window.ipcRenderer.on('main-process-message', (_event, message) => {
-  console.log(message)
-})
+// 2. On initialise notre vue
+const renderer = new GameRenderer(canvas);
+
+// 3. MOCKING : On simule des données que le serveur pourrait nous envoyer
+const mockGrid = [
+    [1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1],
+];
+
+// On déclenche l'événement !
+eventBus.emit('RENDER_MOCK_GRID', mockGrid);
