@@ -40,3 +40,11 @@ export interface GameConfig {
   bombCountdownTicks: number;
   explosionDurationTicks: number;
 }
+
+export const DEFAULT_GAME_CONFIG: GameConfig = {
+  tickRate: 20,
+  gridWidth: 15,
+  gridHeight: 13,
+  bombCountdownTicks: 60,
+  explosionDurationTicks: 10,
+};
