@@ -1,4 +1,4 @@
-import { GameEngine } from './Engine/GameEngine.js';
+import { GameEngine } from './engine/GameEngine.js';
 import { DEFAULT_GAME_CONFIG } from '@bomberman/shared';
 
 const engine = new GameEngine();

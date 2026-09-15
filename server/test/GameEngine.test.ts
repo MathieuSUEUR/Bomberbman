@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GameEngine } from '../src/Engine/GameEngine.js';
+import { GameEngine } from '../src/engine/GameEngine.js';
 
 describe('GameEngine - Tests unitaires primitifs', () => {
   let engine: GameEngine;
