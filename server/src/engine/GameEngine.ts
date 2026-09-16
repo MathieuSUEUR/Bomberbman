@@ -27,10 +27,18 @@ export class GameEngine {
         this.actionFile = [];
     }
 
+    /**
+     * Fonction qui permet d'ajouter une action a la file 
+     * @param action Une action d'un joueur
+     */
     public ajouterAction(action: PlayerAction): void {
         this.actionFile.push(action);
     }
 
+    /**
+     * Fonction qui permet de faire avancer le moteur de jeu
+     * @returns GameState L'état actuel du jeu
+     */
     public tick(): GameState {
         this.tickCount++;
 
@@ -39,8 +47,10 @@ export class GameEngine {
         return this.obtenirEtatActuel();
     }
 
-
-
+    /**
+     * Fonction qui permet d'obtenir l'état actuel du jeu
+     * @returns GameState L'état actuel du jeu
+     */
     public obtenirEtatActuel(): GameState {
         const playersPourClient: Record<string, PlayerState> = {};
         this.players.forEach((etat, id) => {
