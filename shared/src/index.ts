@@ -1,2 +1,2 @@
 // Module partagé : types TypeScript, modèles de données et protocoles réseau
-export {};
+export { CellType, type CellTypeValue } from "./CellType.js";

@@ -1,15 +1,17 @@
-import { CellType } from "../../../shared/src/CellType.js";
+import { CellType, type CellTypeValue } from "@bomberman/shared";
 
 export class Map {
-    constructor(grid) {
+    private grid: CellTypeValue[][];
+
+    constructor(grid: CellTypeValue[][]) {
         this.grid = grid;
     }
 
-    get(x, y) {
+    get(x: number, y: number): CellTypeValue | undefined {
         return this.grid[y]?.[x];
     }
 
-    explosion(x, y, size) {
+    explosion(x: number, y: number, size: number): void {
         const directions = [
             { x: 1, y: 0 },
             { x: -1, y: 0 },
