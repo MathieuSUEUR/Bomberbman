@@ -15,6 +15,11 @@ export class BombManager {
     }
 
     public placerBombe(playerId: string, x: number, y: number, range: number, currentTick: number): void {
+        const dejaUneBombe = this.bombs.some(
+            b => b.position.x === x && b.position.y === y
+        );
+        if (dejaUneBombe) return;
+
         const bomb: BombState = {
             id: `${playerId}-${currentTick}`,
             ownerId: playerId,
