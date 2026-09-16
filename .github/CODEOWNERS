@@ -1,0 +1,5 @@
+# Le pôle DevOps & Qualité doit approuver toute modification
+# touchant à l'infrastructure, la CI/CD ou le serveur.
+
+/server/   @MathieuSUEUR @AlexisPonceyValdemar
+/.github/  @MathieuSUEUR @AlexisPonceyValdemar
