@@ -2,28 +2,28 @@ import {
     PlayerState,
     PlayerAction,
     GameState,
-    GameStatus,
-    BombState,
+    GameStatus
 } from '@bomberman/shared';
 
 
 import { Map as GameMap } from '../map/Map.js';
-import { generateMap, generateGrid } from '../map/MapGenerator.js';
+import { generateMap } from '../map/MapGenerator.js';
+import { BombManager } from '../rules/BombManager.js';
 
 export class GameEngine {
     private tickCount: number;
     private status: GameStatus;
     private map: GameMap;
     private players: Map<string, PlayerState>;
-    private bombs: BombState[];
+    private bombManager: BombManager;
     private actionFile: PlayerAction[];
 
     constructor() { 
         this.tickCount = 0;
         this.status = 'WAITING';
         this.map = generateMap();
+        this.bombManager = new BombManager(100, 2);
         this.players = new Map();
-        this.bombs = [];
         this.actionFile = [];
     }
 
@@ -34,15 +34,13 @@ export class GameEngine {
     public tick(): GameState {
         this.tickCount++;
 
-
-
-
+        this.bombManager.tick(this.tickCount, this.map, this.players);
 
         return this.obtenirEtatActuel();
     }
 
 
-    
+
     public obtenirEtatActuel(): GameState {
         const playersPourClient: Record<string, PlayerState> = {};
         this.players.forEach((etat, id) => {
@@ -54,8 +52,8 @@ export class GameEngine {
             status: this.status,
             grid: this.map.getGrid(),
             players: playersPourClient,
-            bombs: this.bombs,
-            explosions: [],
+            bombs: this.bombManager.getBombs(),
+            explosions: this.bombManager.getExplosions()
         };
     }
 }
