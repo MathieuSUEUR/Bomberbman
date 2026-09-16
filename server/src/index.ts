@@ -1,10 +1,14 @@
 import { GameEngine } from './engine/GameEngine.js';
 import { DEFAULT_GAME_CONFIG } from '@bomberman/shared';
+import { generateGrid, debugMap } from './map/MapGenerator.js';
 
 const engine = new GameEngine();
 
 // 20 ticks par seconde (1000ms / 20 = 50ms)
 const TICK_INTERVAL_MS = 1000 / DEFAULT_GAME_CONFIG.tickRate;
+
+
+generateGrid();
 
 setInterval(() => {
   try {
@@ -15,3 +19,5 @@ setInterval(() => {
     console.error(error);
   }
 }, TICK_INTERVAL_MS);
+
+
