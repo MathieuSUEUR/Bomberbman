@@ -1,46 +1,42 @@
+import { CellType } from "./CellType.js";
+
 export class Map {
-    constructor(map) {
-        this.map = map;
+    constructor(grid) {
+        this.grid = grid;
     }
 
-    breakWall(x, y) {
-        if (this.map[y][x] === "breakable_wall") {
-            this.map[y][x] = "ground";
-            return true;
-        }
-
-        return false;
+    get(x, y) {
+        return this.grid[y]?.[x];
     }
-
 
     explosion(x, y, size) {
         const directions = [
-            [1, 0],  // droite
-            [-1, 0], // gauche
-            [0, 1],  // bas
-            [0, -1]  // haut
+            { x: 1, y: 0 },
+            { x: -1, y: 0 },
+            { x: 0, y: 1 },
+            { x: 0, y: -1 }
         ];
 
-        for (const [dx, dy] of directions) {
+        for (const direction of directions) {
             for (let distance = 1; distance <= size; distance++) {
-                const newX = x + dx * distance;
-                const newY = y + dy * distance;
+                const newX = x + direction.x * distance;
+                const newY = y + direction.y * distance;
 
-                const cell = this.map[newY]?.[newX];
+                const cellType = this.get(newX, newY);
 
-                if (cell === "wall") {
+                if (cellType === undefined) {
                     break;
                 }
 
-                if (cell === "breakable_wall") {
-                    this.map[newY][newX] = "ground";
+                if (cellType === CellType.INDESTRUCTIBLE_WALL) {
+                    break;
+                }
+
+                if (cellType === CellType.DESTRUCTIBLE_WALL) {
+                    this.grid[newY][newX] = CellType.EMPTY;
                     break;
                 }
             }
         }
-    }
-
-    get(x, y) {
-        return this.map[y][x];
     }
 }
