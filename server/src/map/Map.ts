@@ -1,14 +1,20 @@
-import { CellType, type CellTypeValue } from "@bomberman/shared";
+import {
+    CellType
+} from '@bomberman/shared';
 
 export class Map {
-    private grid: CellTypeValue[][];
+    private grid: CellType[][];
 
-    constructor(grid: CellTypeValue[][]) {
+    constructor(grid: CellType[][]) {
         this.grid = grid;
     }
 
-    get(x: number, y: number): CellTypeValue | undefined {
+    get(x: number, y: number): CellType | undefined {
         return this.grid[y]?.[x];
+    }
+
+    getGrid(): CellType[][] {
+        return this.grid;
     }
 
     explosion(x: number, y: number, size: number): void {
