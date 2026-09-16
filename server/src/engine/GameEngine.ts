@@ -39,6 +39,12 @@ export class GameEngine {
      */
     public tick(): GameState {
         this.tickCount++;
+
+        //  traitement des actions
+        //  this.processActions();
+
+        // mise à jour de la logique
+        // this.updateGameLogic();
         
     
         return this.obtenirEtatActuel();
@@ -65,5 +71,18 @@ export class GameEngine {
         bombs: this.bombs,
         explosions: [],
         };
+    }
+
+    /**
+     * Traite les actions demandées par les joueurs
+     * @param actions La liste des actions à traiter
+     * @returns void
+     */
+    private processActions(actions: PlayerAction[]): void {
+        while(this.actionFile.length > 0) {
+            const action = this.actionFile.shift();
+                if(!action) continue; // Si action est undefined, on passe à l'itération suivante
+                // TODO : Implémenter la logique de traitement des actions des joueurs
+        }
     }
 }
