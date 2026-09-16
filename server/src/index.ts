@@ -1,5 +1,6 @@
 import { GameEngine } from './engine/GameEngine.js';
 import { DEFAULT_GAME_CONFIG } from '@bomberman/shared';
+import { generateGrid, debugMap } from './map/MapGenerator.js';
 
 const engine = new GameEngine();
 
