@@ -1,4 +1,4 @@
-import { CellType } from "./CellType.js";
+import { CellType } from "../../../shared/src/CellType.js";
 
 export class Map {
     constructor(grid) {
