@@ -51,7 +51,9 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
 
 /**
  * Retourne les quatre positions de départ des joueurs.
- *
+ * @param width La largeur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridWidth`).
+ * @param height La hauteur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridHeight`).
+ * 
  * On utilise `width - 2` et `height - 2` parce que les bordures du plateau sont occupées
  * par des murs indestructibles (indices `0` et `width - 1` / `height - 1`). Les cases
  * jouables les plus proches des coins sont donc `1` et `width - 2`.
@@ -70,7 +72,9 @@ export function getSpawnPositions(
 
 /**
  * Retourne les 12 cases qui constituent les zones sûres des quatre coins du plateau.
- *
+ * @param width La largeur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridWidth`).
+ * @param height La hauteur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridHeight`).
+ * 
  * Chaque coin possède 3 cases de sécurité pour éviter que les joueurs soient immédiatement
  * bloqués par des murs au moment de l'apparition. Les coins sont donc définis comme des
  * zones autour des emplacements initiaux, et non pas seulement par la seule case exacte.
@@ -107,7 +111,11 @@ export function getSafeCornerCells(
 
 /**
  * Vérifie si une case appartient à l'une des zones de sécurité du coin.
- *
+ * @param x L'indice de la colonne de la case.
+ * @param y L'indice de la ligne de la case.
+ * @param width La largeur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridWidth`).
+ * @param height La hauteur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridHeight`).
+ * 
  * Les seuls indices utilisables près des bords sont `1` et `width - 2`; c'est pourquoi
  * les zones de spawn sont décalées d'un case depuis les murs externes.
  */
