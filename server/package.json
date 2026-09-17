@@ -18,7 +18,8 @@
   "devDependencies": {
     "@types/ws": "^8.5.14",
     "eslint": "^9.39.5",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "typescript-eslint": "^8.70.0"
   },
   "license": "ISC"
 }
