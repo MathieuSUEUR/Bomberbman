@@ -1,2 +1,39 @@
 # Pipeline CI GitHub Actions : build, lint et tests automatisés
 # À configurer par le pôle DevOps
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        workspace: [server, client]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Installer les dépendances
+        run: npm ci
+        working-directory: ${{ matrix.workspace }}
+
+      - name: Lint
+        run: npm run lint
+        working-directory: ${{ matrix.workspace }}
+
+      - name: Build
+        run: npm run build
+        working-directory: ${{ matrix.workspace }}
+
+      - name: Tests unitaires
+        run: npm test -- --coverage
+        working-directory: ${{ matrix.workspace }}

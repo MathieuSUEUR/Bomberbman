@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
+    "lint": "eslint .",
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
@@ -16,7 +17,9 @@
   },
   "devDependencies": {
     "@types/ws": "^8.5.14",
-    "tsx": "^4.19.2"
+    "eslint": "^9.39.5",
+    "tsx": "^4.19.2",
+    "typescript-eslint": "^8.70.0"
   },
   "license": "ISC"
 }
