@@ -3,7 +3,8 @@ import {
     PlayerAction,
     GameState,
     GameStatus,
-    LobbyPlayer
+    LobbyPlayer,
+    DEFAULT_GAME_CONFIG
 } from '@bomberman/shared';
 
 
@@ -23,7 +24,7 @@ export class GameEngine {
         this.tickCount = 0;
         this.status = 'WAITING';
         this.map = generateMap();
-        this.bombManager = new BombManager(100, 2);
+        this.bombManager = new BombManager(DEFAULT_GAME_CONFIG.bombCountdownTicks, DEFAULT_GAME_CONFIG.explosionDurationTicks);
         this.players = new Map();
         this.actionFile = [];
     }
@@ -49,12 +50,12 @@ export class GameEngine {
     }
 
     /**
-     * Fonction qui permet d'obtenir l'état actuel du jeu
-     * @returns GameState L'état actuel du jeu
-     */
-
-    //initialise les joueurs
+    * Fonction qui permet d'initialiser les joueurs dans le moteur de jeu
+    * @param lobbyPlayers La liste des joueurs dans le lobby
+    * @returns VOID
+    */
     public initPlayers(lobbyPlayers: LobbyPlayer[]): void {
+        // Définition des positions de départ pour les joueurs
         const startPositions = [
             { x: 1, y: 1 },
             { x: 13, y: 1 },
@@ -79,6 +80,10 @@ export class GameEngine {
         this.status = 'IN_PROGRESS';//instance du game engine en cours
     }
 
+    /**
+     * Fonction qui permet d'obtenir l'état actuel du jeu
+     * @returns GameState L'état actuel du jeu
+     */
     public obtenirEtatActuel(): GameState {
         const playersPourClient: Record<string, PlayerState> = {};
         this.players.forEach((etat, id) => {

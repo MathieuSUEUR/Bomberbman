@@ -1,15 +1,12 @@
-/**
- * @file Module de génération procédurale de la carte de jeu Bomberman.
- */
-
 import { CellType } from '@bomberman/shared';
 import { Map as GameMap } from './Map.js';
+import { DEFAULT_GAME_CONFIG } from '@bomberman/shared';
 
 /** Largeur standard de la grille en nombre de cases. */
-const WIDTH = 15;
+const WIDTH = DEFAULT_GAME_CONFIG.gridWidth;
 
 /** Hauteur standard de la grille en nombre de cases. */
-const HEIGHT = 13;
+const HEIGHT = DEFAULT_GAME_CONFIG.gridHeight;
 
 /**
  * Génère un nombre entier pseudo-aléatoire compris entre `min` et `max` inclus.
