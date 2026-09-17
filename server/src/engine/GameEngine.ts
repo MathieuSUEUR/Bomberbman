@@ -4,7 +4,8 @@ import {
     GameState,
     GameStatus,
     LobbyPlayer,
-    DEFAULT_GAME_CONFIG
+    DEFAULT_GAME_CONFIG,
+    getSpawnPositions
 } from '@bomberman/shared';
 
 
@@ -55,14 +56,9 @@ export class GameEngine {
     * @returns VOID
     */
     public initPlayers(lobbyPlayers: LobbyPlayer[]): void {
-        // Définition des positions de départ pour les joueurs
-        const startPositions = [
-            { x: 1, y: 1 },
-            { x: 13, y: 1 },
-            { x: 1, y: 11 },
-            { x: 13, y: 11 }
-        ];
+        const startPositions = getSpawnPositions();
 
+        // On initialise les joueurs avec leurs positions de départ et leurs états
         lobbyPlayers.forEach((player, index) => {
             const pos = startPositions[index % startPositions.length];
             this.players.set(player.id, {
