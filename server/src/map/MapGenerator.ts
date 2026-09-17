@@ -1,15 +1,11 @@
-/**
- * @file Module de génération procédurale de la carte de jeu Bomberman.
- */
-
-import { CellType } from '@bomberman/shared';
+import { CellType, DEFAULT_GAME_CONFIG, isSafeCornerCell } from '@bomberman/shared';
 import { Map as GameMap } from './Map.js';
 
 /** Largeur standard de la grille en nombre de cases. */
-const WIDTH = 15;
+const WIDTH = DEFAULT_GAME_CONFIG.gridWidth;
 
 /** Hauteur standard de la grille en nombre de cases. */
-const HEIGHT = 13;
+const HEIGHT = DEFAULT_GAME_CONFIG.gridHeight;
 
 /**
  * Génère un nombre entier pseudo-aléatoire compris entre `min` et `max` inclus.
@@ -37,25 +33,6 @@ function shuffle<T>(array: T[]): T[] {
         [result[i], result[j]] = [result[j], result[i]];
     }
     return result;
-}
-
-/**
- * Détermine si une coordonnée appartient à une zone de sécurité d'un coin (spawn joueur).
- * Ces 3 cases par coin (12 au total) doivent rester vides de tout mur destructible
- * afin d'assurer que les joueurs puissent se déplacer à l'apparition.
- *
- * @param x - Coordonnée X sur la grille.
- * @param y - Coordonnée Y sur la grille.
- * @returns `true` si la case se situe sur un emplacement de spawn réservé, sinon `false`.
- */
-function isSafeCornerCell(x: number, y: number): boolean {
-    const corners = [
-        [1, 1], [2, 1], [1, 2],
-        [WIDTH - 2, 1], [WIDTH - 3, 1], [WIDTH - 2, 2],
-        [1, HEIGHT - 2], [2, HEIGHT - 2], [1, HEIGHT - 3],
-        [WIDTH - 2, HEIGHT - 2], [WIDTH - 3, HEIGHT - 2], [WIDTH - 2, HEIGHT - 3],
-    ];
-    return corners.some(([cx, cy]) => cx === x && cy === y);
 }
 
 /**
@@ -90,7 +67,7 @@ export function generateGrid(): CellType[][] {
         for (let x = 0; x < WIDTH; x++) {
             if (
                 grid[y][x] === CellType.EMPTY &&
-                !isSafeCornerCell(x, y)
+                !isSafeCornerCell(x, y, WIDTH, HEIGHT)
             ) {
                 grid[y][x] = CellType.DESTRUCTIBLE_WALL;
             }
