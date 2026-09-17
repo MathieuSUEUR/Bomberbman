@@ -3,8 +3,7 @@ import { randomUUID } from 'node:crypto';
 import {
   ClientMessage,
   ServerMessage,
-  LobbyPlayer,
-  GameState
+  LobbyPlayer
 } from '@bomberman/shared';
 import { GameEngine } from '../engine/GameEngine.js';
 
@@ -45,7 +44,7 @@ export class SocketManager {
       this.handleConnection(ws);
     });
     
-    console.log(`SocketManager: WebSocket server started on port ${port}`);
+    console.info(`SocketManager: WebSocket server started on port ${port}`);
   }
 
   /**
@@ -106,7 +105,7 @@ export class SocketManager {
         this.broadcastLobbyState();
         break;
 
-      case 'READY':
+      case 'READY': {
         // Le joueur confirme qu'il est prêt à démarrer
         const player = this.lobbyPlayers.find(p => p.id === clientId);
         if (player) {
@@ -116,16 +115,18 @@ export class SocketManager {
           this.checkGameStart();
         }
         break;
+      }
 
-      case 'ACTION':
+      case 'ACTION': {
         // Transmission de l'action réseau (ex: poser une bombe) à la file d'attente du GameEngine
         this.engine.ajouterAction({
           playerId: clientId,
           actionType: message.payload.actionType
         });
         break;
+      }
 
-      case 'PING':
+      case 'PING': {
         // Réponse au PING pour maintenir la connexion ou calculer la latence
         const ws = this.clients.get(clientId);
         if (ws) {
@@ -135,6 +136,7 @@ export class SocketManager {
           });
         }
         break;
+      }
     }
   }
 
@@ -174,8 +176,49 @@ export class SocketManager {
         payload: { initialState }
       });
       
-      console.log('SocketManager: All players ready, GAME_START broadcasted!');
+      console.info('SocketManager: All players ready, GAME_START broadcasted!');
     }
+  }
+
+  /**
+   * Attend que le serveur WebSocket soit prêt et en écoute.
+   */
+  public waitUntilReady(): Promise<void> {
+    return new Promise((resolve) => {
+      if (this.wss.address()) {
+        resolve();
+      } else {
+        this.wss.once('listening', () => {
+          resolve();
+        });
+      }
+    });
+  }
+
+  /**
+   * Retourne le port sur lequel écoute le serveur WebSocket.
+   */
+  public getPort(): number {
+    const address = this.wss.address();
+    if (address && typeof address === 'object') {
+      return address.port;
+    }
+    return 0;
+  }
+
+  /**
+   * Ferme le serveur WebSocket et toutes les connexions actives.
+   */
+  public close(): Promise<void> {
+    return new Promise((resolve) => {
+      for (const ws of this.clients.values()) {
+        ws.terminate();
+      }
+      this.clients.clear();
+      this.wss.close(() => {
+        resolve();
+      });
+    });
   }
 
   /**

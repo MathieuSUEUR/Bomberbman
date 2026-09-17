@@ -12,6 +12,13 @@ export default tseslint.config(
     }
   },
   {
-    ignores: ['**/dist/**', '**/dist-electron/**', '**/node_modules/**', '**/coverage/**', '**/build/**']
+    ignores: [
+      '**/dist/**',
+      '**/dist-electron/**',
+      '**/node_modules/**',
+      '**/coverage/**',
+      '**/build/**',
+      'server/testClient.js'
+    ]
   }
 );
