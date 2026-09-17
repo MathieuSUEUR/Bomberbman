@@ -28,10 +28,18 @@ export class GameEngine {
         this.actionFile = [];
     }
 
+    /**
+     * Fonction qui permet d'ajouter une action a la file 
+     * @param action Une action d'un joueur
+     */
     public ajouterAction(action: PlayerAction): void {
         this.actionFile.push(action);
     }
 
+    /**
+     * Fonction qui permet de faire avancer le moteur de jeu
+     * @returns GameState L'état actuel du jeu
+     */
     public tick(): GameState {
         this.tickCount++;
 
@@ -40,6 +48,10 @@ export class GameEngine {
         return this.obtenirEtatActuel();
     }
 
+    /**
+     * Fonction qui permet d'obtenir l'état actuel du jeu
+     * @returns GameState L'état actuel du jeu
+     */
 
     //initialise les joueurs
     public initPlayers(lobbyPlayers: LobbyPlayer[]): void {
@@ -81,5 +93,18 @@ export class GameEngine {
             bombs: this.bombManager.getBombs(),
             explosions: this.bombManager.getExplosions()
         };
+    }
+
+    /**
+     * Traite les actions demandées par les joueurs
+     * @param actions La liste des actions à traiter
+     * @returns void
+     */
+    private processActions(actions: PlayerAction[]): void {
+        while(this.actionFile.length > 0) {
+            const action = this.actionFile.shift();
+                if(!action) continue; // Si action est undefined, on passe à l'itération suivante
+                // TODO : Implémenter la logique de traitement des actions des joueurs
+        }
     }
 }
