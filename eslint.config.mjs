@@ -17,8 +17,7 @@ export default tseslint.config(
       '**/dist-electron/**',
       '**/node_modules/**',
       '**/coverage/**',
-      '**/build/**',
-      'server/testClient.js'
+      '**/build/**'
     ]
   }
 );
