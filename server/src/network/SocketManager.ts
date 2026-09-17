@@ -8,113 +8,117 @@ import {
 } from '@bomberman/shared';
 import { GameEngine } from '../engine/GameEngine.js';
 
-
-//Ce fichier gère l'ensemble de la couche réseau (WebSockets) du serveur, sert de pont entre clients/moteur (GameEngine).
-
-
+/**
+ * Gère l'ensemble de la couche réseau (WebSockets) du serveur.
+ * Sert de pont entre les clients et le moteur de jeu (GameEngine).
+ */
 export class SocketManager {
 
   private wss: WebSocketServer;
 
-  // dictio. qui lie UUID unique de chaque joueur à sa connexion WebSocket active
+  /**
+   * Dictionnaire liant l'UUID unique de chaque joueur à sa connexion WebSocket active.
+   */
   private clients: Map<string, WebSocket> = new Map();
 
+  /**
+   * Liste des joueurs actuellement dans le salon d'attente (Lobby).
+   */
   private lobbyPlayers: LobbyPlayer[] = [];
 
-  // référence sur le moteur de jeu
+  /**
+   * Référence sur le moteur de jeu.
+   */
   private engine: GameEngine;
 
-
-
-  //Initialise le serveur WebSocket et le lie au moteur de jeu.
-  //parametre 1 - 'port' est le port sur lequel le serveur écoute
-  //parametre 2 - 'engine' est l'instance du GameEngine, utilisée pour envoyer les actions des joueurs
-
+  /**
+   * Initialise le serveur WebSocket et le lie au moteur de jeu.
+   *
+   * @param port - Le port sur lequel le serveur écoute.
+   * @param engine - L'instance du GameEngine, utilisée pour transmettre les actions des joueurs.
+   */
   constructor(port: number, engine: GameEngine) {
     this.engine = engine;
     this.wss = new WebSocketServer({ port });
+    
     this.wss.on('connection', (ws: WebSocket) => {
       this.handleConnection(ws);
     });
+    
     console.log(`SocketManager: WebSocket server started on port ${port}`);
   }
 
-
-
-
-  //Gère une nouvelle connexion WebSocket entrante. Assigne un UUID au client et met en place les écouteurs de messages et de déconnexion.
-
+  /**
+   * Gère une nouvelle connexion WebSocket entrante. 
+   * Assigne un UUID au client et met en place les écouteurs de messages et de déconnexion.
+   *
+   * @param ws - L'instance WebSocket représentant la connexion du client.
+   */
   private handleConnection(ws: WebSocket) {
     const clientId = randomUUID();
     this.clients.set(clientId, ws);
 
-    //On envoie le message de bienvenue avec l'ID généré pour que le client se reconnaisse
+    // Envoi du message de bienvenue avec l'ID généré pour que le client s'identifie
     this.sendMessage(ws, {
       type: 'WELCOME',
       payload: { playerId: clientId }
     });
 
-    //gere la réception d'un message depuis ce client
+    // Gestion de la réception d'un message depuis ce client
     ws.on('message', (data: string) => {
       try {
-
         const message = JSON.parse(data.toString()) as ClientMessage;
         this.handleClientMessage(clientId, message);
-
       } catch (error) {
-
         console.error(`SocketManager: Invalid message from ${clientId}`, error);
-        //message mal formé
+        // Traitement du message mal formé
         this.sendMessage(ws, {
           type: 'ERROR',
           payload: { message: 'Invalid JSON or message structure' }
-
         });
       }
     });
 
-    //gestion de la deconnexion
+    // Gestion de la déconnexion du client
     ws.on('close', () => {
-      this.clients.delete(clientId);//retirer du lobby
+      this.clients.delete(clientId);
       this.lobbyPlayers = this.lobbyPlayers.filter(p => p.id !== clientId);
-      this.broadcastLobbyState();//partage de l'etat du nouveau lobby
+      this.broadcastLobbyState(); // Mise à jour de l'état du lobby pour les autres joueurs
     });
   }
 
-
-
-
-  //Traite les requêtes (JOIN, READY, ACTION, PING) envoyées par un client.
-  //prend en parametre 1 "clientId" L'UUID du client expéditeur
-  //prend en 2e paramatre "message" Le message typé reçu
-
+  /**
+   * Traite les requêtes (JOIN, READY, ACTION, PING) envoyées par un client.
+   *
+   * @param clientId - L'UUID du client expéditeur.
+   * @param message - Le message typé reçu du client.
+   */
   private handleClientMessage(clientId: string, message: ClientMessage) {
     switch (message.type) {
-
       case 'JOIN':
-        // rejoint le lobby
+        // Le joueur rejoint le lobby
         this.lobbyPlayers.push({
           id: clientId,
           name: message.payload.name,
           isReady: false
         });
-        //notif de l'arrivé
+        // Notification de l'arrivée aux autres clients
         this.broadcastLobbyState();
         break;
 
       case 'READY':
-        //joueur confirme qu'il est prêt à démarrer
+        // Le joueur confirme qu'il est prêt à démarrer
         const player = this.lobbyPlayers.find(p => p.id === clientId);
         if (player) {
           player.isReady = message.payload?.isReady ?? true;
           this.broadcastLobbyState();
-          //verification si tout le monde est prêt pour lancer la partie
+          // Vérification si tous les joueurs sont prêts pour lancer la partie
           this.checkGameStart();
         }
         break;
 
       case 'ACTION':
-        //action réseau (ex: poser une bombe) directement passée à la file d'attente du GameEngine.
+        // Transmission de l'action réseau (ex: poser une bombe) à la file d'attente du GameEngine
         this.engine.ajouterAction({
           playerId: clientId,
           actionType: message.payload.actionType
@@ -122,6 +126,7 @@ export class SocketManager {
         break;
 
       case 'PING':
+        // Réponse au PING pour maintenir la connexion ou calculer la latence
         const ws = this.clients.get(clientId);
         if (ws) {
           this.sendMessage(ws, {
@@ -133,13 +138,14 @@ export class SocketManager {
     }
   }
 
-
-
-
-  //Diffuse l'état actuel du salon d'attente à tous les clients connectés et permet aux interfaces clientes d'afficher la liste des joueurs et le bouton 'Prêt'.
+  /**
+   * Diffuse l'état actuel du salon d'attente à tous les clients connectés.
+   * Permet aux interfaces clientes d'afficher la liste des joueurs et d'activer le bouton 'Prêt'.
+   */
   private broadcastLobbyState() {
-    //La partie peut démarrer si au moins 2 joueurs sont présents et tous sont en statut 'READY'
+    // La partie peut démarrer si au moins 2 joueurs sont présents et tous sont en statut 'READY'
     const canStart = this.lobbyPlayers.length >= 2 && this.lobbyPlayers.every(p => p.isReady);
+    
     this.broadcast({
       type: 'LOBBY_STATE',
       payload: {
@@ -149,46 +155,47 @@ export class SocketManager {
     });
   }
 
-
-
-
-  //Vérifie si les conditions de lancement sont réunies et déclenche le démarrage.
+  /**
+   * Vérifie si les conditions de lancement sont réunies et déclenche le démarrage du jeu.
+   */
   private checkGameStart() {
-
-    const canStart = this.lobbyPlayers.length >= 2 && this.lobbyPlayers.every(p => p.isReady);//deux joueurs min et tous prêts
+    const canStart = this.lobbyPlayers.length >= 2 && this.lobbyPlayers.every(p => p.isReady);
 
     if (canStart && this.engine.obtenirEtatActuel().status === 'WAITING') {
+      // Transmission de la position et des informations des joueurs au moteur
+      this.engine.initPlayers(this.lobbyPlayers);
 
-      this.engine.initPlayers(this.lobbyPlayers);//donne a engine la position des joueurs
+      // Récupération de l'état initial du jeu (joueurs à leur point d'apparition)
+      const initialState = this.engine.obtenirEtatActuel();
 
-      const initialState = this.engine.obtenirEtatActuel();//On récupère le tout premier état du jeu (joueurs à leur spawn)
-
-      //Notifie tous les clients que le jeu commence avec l'etat.
-      //les clients peuvent afficher la grille au lieu du lobby
+      // Notification aux clients du début de la partie
       this.broadcast({
         type: 'GAME_START',
         payload: { initialState }
       });
+      
       console.log('SocketManager: All players ready, GAME_START broadcasted!');
-
     }
   }
 
-
-
-
-  //Méthode utilitaire pour envoyer un message à un client précis.
+  /**
+   * Méthode utilitaire pour envoyer un message à un client précis.
+   *
+   * @param ws - La connexion WebSocket destinataire.
+   * @param message - Le message typé à transmettre.
+   */
   public sendMessage(ws: WebSocket, message: ServerMessage) {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
     }
   }
 
-
-
-
-  //Méthode utilitaire pour diffuser un message à tous les clients simultanément.
-  //fonction très utilisé ( a chaque tick minimum )
+  /**
+   * Méthode utilitaire pour diffuser un message à tous les clients simultanément.
+   * (Utilisée fréquemment, au minimum à chaque tick du serveur).
+   *
+   * @param message - Le message typé à diffuser.
+   */
   public broadcast(message: ServerMessage) {
     const data = JSON.stringify(message);
     for (const ws of this.clients.values()) {
@@ -197,7 +204,5 @@ export class SocketManager {
       }
     }
   }
-
-
 
 }
