@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import {
     PlayerState,
     PlayerAction,
@@ -13,15 +14,17 @@ import { Map as GameMap } from '../map/Map.js';
 import { generateMap } from '../map/MapGenerator.js';
 import { BombManager } from '../rules/BombManager.js';
 
-export class GameEngine {
+export class GameEngine extends EventEmitter {
     private tickCount: number;
     private status: GameStatus;
     private map: GameMap;
     private players: Map<string, PlayerState>;
     private bombManager: BombManager;
     private actionFile: PlayerAction[];
+    private gameLoopInterval: NodeJS.Timeout | null = null;
 
     constructor() {
+        super();
         this.tickCount = 0;
         this.status = 'WAITING';
         this.map = generateMap();
@@ -45,7 +48,21 @@ export class GameEngine {
     public tick(): GameState {
         this.tickCount++;
 
-        this.bombManager.tick(this.tickCount, this.map, this.players);
+        this.processActions();
+        
+        const tickResult = this.bombManager.tick(this.tickCount, this.map, this.players);
+        
+        // Émettre les événements pour chaque bombe qui a explosé
+        tickResult.explodedBombs.forEach(bombPayload => {
+            this.emit('bombExploded', bombPayload);
+        });
+
+        // Émettre les événements pour chaque joueur éliminé
+        tickResult.eliminatedPlayers.forEach(playerId => {
+            this.emit('playerEliminated', { playerId });
+        });
+
+        // TODO: Vérifier les conditions de GAME_OVER (ex: s'il ne reste qu'un seul joueur en vie ou 0)
 
         return this.obtenirEtatActuel();
     }
@@ -74,6 +91,37 @@ export class GameEngine {
             });
         });
         this.status = 'IN_PROGRESS';//instance du game engine en cours
+        this.startGameLoop();
+    }
+
+    /**
+     * Démarre la boucle de jeu périodique
+     */
+    public startGameLoop(): void {
+        if (this.gameLoopInterval) return;
+        
+        // Calcul de l'intervalle en ms (ex: tickRate 20 = 50ms)
+        const tickIntervalMs = 1000 / DEFAULT_GAME_CONFIG.tickRate;
+        
+        this.gameLoopInterval = setInterval(() => {
+            if (this.status === 'IN_PROGRESS') {
+                const state = this.tick();
+                this.emit('tick', state);
+            }
+        }, tickIntervalMs);
+        
+        console.info(`GameEngine: boucle de jeu démarrée (${DEFAULT_GAME_CONFIG.tickRate} ticks/s)`);
+    }
+
+    /**
+     * Arrête la boucle de jeu
+     */
+    public stopGameLoop(): void {
+        if (this.gameLoopInterval) {
+            clearInterval(this.gameLoopInterval);
+            this.gameLoopInterval = null;
+            console.info('GameEngine: boucle de jeu arrêtée');
+        }
     }
 
     /**
@@ -98,10 +146,8 @@ export class GameEngine {
 
     /**
      * Traite les actions demandées par les joueurs
-     * @param actions La liste des actions à traiter
-     * @returns void
      */
-    private processActions(actions: PlayerAction[]): void {
+    private processActions(): void {
         while(this.actionFile.length > 0) {
             const action = this.actionFile.shift();
                 if(!action) continue; // Si action est undefined, on passe à l'itération suivante
