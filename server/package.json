@@ -5,10 +5,14 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
+    "prebuild": "cd ../shared && npm run build",
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "test": "vitest run"
+    "lint": "eslint .",
+    "pretest": "cd ../shared && npm run build",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@bomberman/shared": "*",
