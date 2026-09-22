@@ -101,7 +101,7 @@ export class GameEngine {
      * @param actions La liste des actions à traiter
      * @returns void
      */
-    private processActions(actions: PlayerAction[]): void {
+    private processActions(_actions: PlayerAction[]): void {
         while(this.actionFile.length > 0) {
             const action = this.actionFile.shift();
                 if(!action) continue; // Si action est undefined, on passe à l'itération suivante
