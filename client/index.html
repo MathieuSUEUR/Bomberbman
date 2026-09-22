@@ -1,13 +1,18 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + TS</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
-</html>
+<body>
+  <!-- L'interface utilisateur (Menu/Lobby) -->
+  <div id="lobby-screen" class="screen">
+    <h1>Bomberman Arena</h1>
+    <div class="players-list">
+      <p>En attente de joueurs...</p>
+      <ul id="players">
+        <li>Joueur 1 (Toi)</li>
+      </ul>
+    </div>
+    <button id="btn-start-mock">Lancer le Mocking (Test)</button>
+  </div>
+
+  <!-- Ta zone de jeu (cachée par défaut) -->
+  <canvas id="game-canvas" style="display: none;"></canvas>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
