@@ -3,6 +3,11 @@ import grassSrc from '../assets/sprites/grass.png'; // Tes nouveaux obstacles
 import playerSrc from '../assets/sprites/bomberman.png';
 import { eventBus } from '../core/EventBus';
 
+export interface GameState {
+    grid: number[][];
+    players: { id: string, x: number, y: number }[];
+}
+
 export class GameRenderer {
     private ctx: CanvasRenderingContext2D;
     private tileSize = 50;
@@ -23,12 +28,12 @@ export class GameRenderer {
         this.playerImg = new Image();
         this.playerImg.src = playerSrc;
 
-        eventBus.on('GAME_STATE_UPDATE', (state: any) => {
-            this.renderState(state);
+        eventBus.on('GAME_STATE_UPDATE', (state: unknown) => {
+            this.renderState(state as GameState);
         });
     }
 
-    private renderState(state: { grid: number[][], players: any[] }) {
+    private renderState(state: GameState) {
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
         // 1. Dessiner le décor

@@ -8,7 +8,7 @@ import { SocketManager } from './network/SocketManager';
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 canvas.width = 500;
 canvas.height = 500;
-const renderer = new GameRenderer(canvas);
+new GameRenderer(canvas);
 
 // 2. Initialisation du clavier et du réseau
 new InputManager();
@@ -43,17 +43,19 @@ btnStartMock.addEventListener('click', () => {
 });
 
 // 6. Faux serveur : On écoute le clavier pour bouger le joueur
-eventBus.on('USER_ACTION', (action: any) => {
-    if (action.type === 'MOVE') {
+eventBus.on('USER_ACTION', (action: unknown) => {
+    const keyboardAction = action as { type: string, payload: { direction: string } };
+    if (keyboardAction.type === 'MOVE') {
+        // ... reste du code : if (keyboardAction.payload.direction === 'UP') etc.
         const player = mockGameState.players[0]; // On prend notre joueur
         let newX = player.x;
         let newY = player.y;
 
         // Calcul de la nouvelle position souhaitée
-        if (action.payload.direction === 'UP') newY -= 1;
-        if (action.payload.direction === 'DOWN') newY += 1;
-        if (action.payload.direction === 'LEFT') newX -= 1;
-        if (action.payload.direction === 'RIGHT') newX += 1;
+        if (keyboardAction.payload.direction === 'UP') newY -= 1;
+        if (keyboardAction.payload.direction === 'DOWN') newY += 1;
+        if (keyboardAction.payload.direction === 'LEFT') newX -= 1;
+        if (keyboardAction.payload.direction === 'RIGHT') newX += 1;
 
         // Logique anti-triche : on vérifie si la case est libre (0)
         if (mockGameState.grid[newY] && mockGameState.grid[newY][newX] === 0) {
