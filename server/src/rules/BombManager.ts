@@ -1,4 +1,4 @@
-import { BombState, ExplosionCell, PlayerState, CellType } from '@bomberman/shared';
+import { BombState, ExplosionCell, PlayerState, CellType, BombExplodedPayload } from '@bomberman/shared';
 import { Map as GameMap } from '../map/Map.js';
 
 /**
@@ -63,15 +63,22 @@ export class BombManager {
      * @param map - Instance de la carte de jeu pour propager les dégâts.
      * @param players - Table des joueurs pour appliquer les éliminations.
      */
-    public tick(currentTick: number, map: GameMap, players: Map<string, PlayerState>): void {
+    public tick(currentTick: number, map: GameMap, players: Map<string, PlayerState>): { explodedBombs: BombExplodedPayload[], eliminatedPlayers: string[] } {
         this.explosions = this.explosions.filter(e => e.expiresAtTick > currentTick);
 
         const bombsAExploser = this.bombs.filter(b => currentTick >= b.explodeAtTick);
         this.bombs = this.bombs.filter(b => currentTick < b.explodeAtTick);
 
+        const explodedBombs: BombExplodedPayload[] = [];
+        const eliminatedPlayers: string[] = [];
+
         for (const bomb of bombsAExploser) {
-            this.exploser(bomb, currentTick, map, players);
+            const res = this.exploser(bomb, currentTick, map, players);
+            explodedBombs.push(res.bombPayload);
+            eliminatedPlayers.push(...res.eliminatedPlayers);
         }
+
+        return { explodedBombs, eliminatedPlayers };
     }
 
     /**
@@ -83,8 +90,9 @@ export class BombManager {
      * @param map - Carte du jeu pour vérifier les obstacles et modifier les cases.
      * @param players - Table des joueurs présents sur la carte.
      */
-    private exploser(bomb: BombState, currentTick: number, map: GameMap, players: Map<string, PlayerState>): void {
+    private exploser(bomb: BombState, currentTick: number, map: GameMap, players: Map<string, PlayerState>): { bombPayload: BombExplodedPayload, eliminatedPlayers: string[] } {
         const cellsExplosion = [bomb.position];
+        const eliminatedPlayers: string[] = [];
 
         // Vecteurs directionnels : droite, gauche, bas, haut
         const directions = [
@@ -122,12 +130,23 @@ export class BombManager {
             this.explosions.push({ position: pos, expiresAtTick });
 
             // Élimination de tout joueur se trouvant sur une case de déflagration
-            for (const [, player] of players) {
+            for (const [id, player] of players) {
                 if (player.isAlive && player.position.x === pos.x && player.position.y === pos.y) {
                     player.isAlive = false;
+                    eliminatedPlayers.push(id);
                 }
             }
         }
+
+        return {
+            bombPayload: {
+                bombId: bomb.id,
+                ownerId: bomb.ownerId,
+                position: bomb.position,
+                affectedCells: cellsExplosion
+            },
+            eliminatedPlayers
+        };
     }
 
     /**

@@ -43,8 +43,44 @@ export class SocketManager {
     this.wss.on('connection', (ws: WebSocket) => {
       this.handleConnection(ws);
     });
+
+    this.setupEngineListeners();
     
     console.info(`SocketManager: WebSocket server started on port ${port}`);
+  }
+
+  /**
+   * Configure les écouteurs d'événements sur le GameEngine pour diffuser
+   * les changements d'état du jeu aux clients.
+   */
+  private setupEngineListeners() {
+    this.engine.on('tick', (state) => {
+      this.broadcast({
+        type: 'GAME_STATE',
+        payload: state
+      });
+    });
+
+    this.engine.on('bombExploded', (payload) => {
+      this.broadcast({
+        type: 'BOMB_EXPLODED',
+        payload
+      });
+    });
+
+    this.engine.on('playerEliminated', (payload) => {
+      this.broadcast({
+        type: 'PLAYER_ELIMINATED',
+        payload
+      });
+    });
+
+    this.engine.on('gameOver', (payload) => {
+      this.broadcast({
+        type: 'GAME_OVER',
+        payload
+      });
+    });
   }
 
   /**
