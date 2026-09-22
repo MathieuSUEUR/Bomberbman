@@ -56,11 +56,16 @@ describe('GameEngine - Tests unitaires primitifs', () => {
 
     engine.initPlayers(lobbyPlayers);
 
-    expect(Object.values(engine.obtenirEtatActuel().players).map(player => player.position)).toEqual([
-      { x: 1, y: 1 },
+    expect(Object.values(engine.obtenirEtatActuel().players).map((player: any) => player.position)).toEqual([      { x: 1, y: 1 },
       { x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: 1 },
       { x: 1, y: DEFAULT_GAME_CONFIG.gridHeight - 2 },
       { x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: DEFAULT_GAME_CONFIG.gridHeight - 2 }
     ]);
+  });
+});
+
+describe('Crash Test CI', () => {
+  it('doit faire echouer le pipeline', () => {
+    expect(1).toBe(2);
   });
 });
