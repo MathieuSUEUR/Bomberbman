@@ -1,2 +1,64 @@
-# Pipeline CI GitHub Actions : build, lint et tests automatisés
-# À configurer par le pôle DevOps
+name: CI
+
+# Le job ne se déclenche que si du code ou de la configuration de build a changé.
+# `shared/**` et les fichiers de config racine sont inclus : server dépend de
+# @bomberman/shared, et lint/build/test dépendent des configs partagées.
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'server/**'
+      - 'client/**'
+      - 'shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+      - 'eslint.config.mjs'
+      - 'vitest.config.ts'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'server/**'
+      - 'client/**'
+      - 'shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+      - 'eslint.config.mjs'
+      - 'vitest.config.ts'
+      - '.github/workflows/ci.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [server, client]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      # Monorepo npm workspaces : l'install se fait une seule fois à la racine,
+      # elle installe shared + server + client à partir du package-lock.json racine.
+      - name: Installer les dépendances
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+        working-directory: ${{ matrix.workspace }}
+      - name: Build
+        run: npm run build
+        working-directory: ${{ matrix.workspace }}
+      - name: Tests unitaires
+        run: npm test -- --coverage
+        working-directory: ${{ matrix.workspace }}
+      - name: Publier le rapport de couverture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.workspace }}
+          path: ${{ matrix.workspace }}/coverage
+          if-no-files-found: ignore
