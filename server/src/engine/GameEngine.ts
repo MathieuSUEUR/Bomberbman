@@ -193,7 +193,7 @@ export class GameEngine extends EventEmitter {
     private movePlayerTo(player: PlayerState, direction: string): void {
         if(!player.isAlive) return;
         
-        let newPos = { x: player.position.x, y: player.position.y };
+        const newPos = { x: player.position.x, y: player.position.y };
 
         switch(direction) {
             case 'UP':
