@@ -6,7 +6,8 @@ import {
     GameStatus,
     LobbyPlayer,
     DEFAULT_GAME_CONFIG,
-    getSpawnPositions
+    getSpawnPositions,
+    CellType
 } from '@bomberman/shared';
 
 
@@ -151,7 +152,89 @@ export class GameEngine extends EventEmitter {
         while(this.actionFile.length > 0) {
             const action = this.actionFile.shift();
                 if(!action) continue; // Si action est undefined, on passe à l'itération suivante
-                // TODO : Implémenter la logique de traitement des actions des joueurs
+
+                if(action.actionType.toString().startsWith("MOVE")){
+                    const player = this.players.get(action.playerId);
+
+                    if(player){
+                        // action type = 'MOVE_UP', 'MOVE_DOWN', 'MOVE_LEFT', 'MOVE_RIGHT'
+                        this.movePlayerTo(player, action.actionType.toString().split("_")[1]);
+                    }
+                    
+                }else if(action.actionType === "PLACE_BOMB"){
+                    const player = this.players.get(action.playerId);
+
+                    if(player){
+                        this.playerPlaceBomb(player);
+                    }
+                }
         }
+    }
+
+    /**
+     * Vérifie si un joueur peut se déplacer vers une case donnée
+     * @param targetX La coordonnée X de la case cible
+     * @param targetY La coordonnée Y de la case cible
+     * @returns boolean True si le joueur peut se déplacer, false sinon
+     */
+    private canMoveTo(targetX: number, targetY: number): boolean {
+
+        // si la case est un mur ou une bordure, on ne peut pas se déplacer
+        if(this.map.get(targetX, targetY) !== CellType.EMPTY) return false;
+       
+        return true;
+    }
+
+    /**
+     * Déplace un joueur vers une case donnée
+     * @param player L'état du joueur
+     * @param direction La direction du mouvement
+     */
+    private movePlayerTo(player: PlayerState, direction: string): void {
+        if(!player.isAlive) return;
+        
+        let newPos = { x: player.position.x, y: player.position.y };
+
+        switch(direction) {
+            case 'UP':
+                newPos.y -= player.speed;
+                break;
+            case 'DOWN':
+                newPos.y += player.speed;
+                break;
+            case 'LEFT':
+                newPos.x -= player.speed;
+                break;
+            case 'RIGHT':
+                newPos.x += player.speed;
+                break;
+            default:
+                break;
+        }
+
+        if (this.canMoveTo(newPos.x, newPos.y)) {
+            player.position = newPos;
+        }
+    }
+
+    /**
+     * Place une bombe à une position donnée
+     * @param player L'état du joueur
+     */
+    private playerPlaceBomb(player: PlayerState): void {
+        if(!player.isAlive) return;
+
+        // on vérifie que la case est bien vide
+        if(this.map.get(player.position.x, player.position.y) !== CellType.EMPTY) return;
+
+        // on vérifie qu'il n'y ait pas deja une bombe sur la case
+        if(this.bombManager.getBombs().some(bomb => bomb.position.x === player.position.x && bomb.position.y === player.position.y)) return;
+
+        // on vérifie que le joueur a encore des bombes disponibles
+        if(player.currentBombs >= player.maxBombs) return;
+
+        // on place la bombe
+        this.bombManager.placerBombe(player.id, player.position.x, player.position.y, player.bombRange, this.tickCount);
+        player.currentBombs++;
     }
 }
