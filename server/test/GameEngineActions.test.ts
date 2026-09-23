@@ -343,6 +343,40 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
       expect(eliminatedPlayerId).toBe('p1');
       expect(getPlayer('p1').isAlive).toBe(false);
     });
+
+    it('devrait éliminer un joueur qui se déplace sur une case où une explosion est active', () => {
+      let eliminatedPlayerId: string | null = null;
+      engine.on('playerEliminated', (data: { playerId: string }) => {
+        eliminatedPlayerId = data.playerId;
+      });
+
+      // p1 pose une bombe en (1, 1)
+      engine.ajouterAction({ playerId: 'p1', actionType: 'PLACE_BOMB' });
+      engine.tick();
+
+      // On avance jusqu'au tick où la bombe explose
+      const countdown = DEFAULT_GAME_CONFIG.bombCountdownTicks;
+      for (let i = 0; i < countdown; i++) {
+        engine.tick();
+      }
+
+      // La case (1, 2) est en flammes (explosion active)
+      expect(engine.obtenirEtatActuel().explosions.some(e => e.position.x === 1 && e.position.y === 2)).toBe(true);
+
+      // p2 spawn en (gridWidth - 2, 1), on le place en (2, 2) avec cases vides
+      setCell(2, 2, CellType.EMPTY);
+      setCell(1, 2, CellType.EMPTY);
+      const p2 = getInternalPlayers().get('p2')!;
+      p2.position = { x: 2, y: 2 };
+
+      // p2 se déplace vers la gauche sur (1, 2) dans les flammes actives
+      engine.ajouterAction({ playerId: 'p2', actionType: 'MOVE_LEFT' });
+      engine.tick();
+
+      // p2 doit avoir été éliminé et l'événement playerEliminated émis
+      expect(eliminatedPlayerId).toBe('p2');
+      expect(getPlayer('p2').isAlive).toBe(false);
+    });
   });
 
   describe('Boucle de jeu et émission d état (Intégration)', () => {

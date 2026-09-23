@@ -7,7 +7,8 @@ import {
     LobbyPlayer,
     DEFAULT_GAME_CONFIG,
     getSpawnPositions,
-    CellType
+    CellType,
+    Direction
 } from '@bomberman/shared';
 
 
@@ -159,29 +160,48 @@ export class GameEngine extends EventEmitter {
         // Ensemble des joueurs ayant déjà effectué un déplacement durant ce tick
         const hasMoved = new Set<string>();
 
-        // on traite les actions en attente
-        while(this.actionFile.length > 0) {
+        // On traite les actions en attente
+        while (this.actionFile.length > 0) {
             const action = this.actionFile.shift();
-                if(!action) continue; // Si action est undefined, on passe à l'itération suivante
+            if (!action) continue;
 
-                if(action.actionType.toString().startsWith("MOVE")){
-                    const player = this.players.get(action.playerId);
+            const player = this.players.get(action.playerId);
+            if (!player || !player.isAlive) continue;
 
-                    // on vérifie que le joueur existe et qu'il n'a pas déjà bougé durant ce tick
-                    if(player && !hasMoved.has(action.playerId)){
-                        this.movePlayerTo(player, action.actionType.toString().split("_")[1]);
-                        hasMoved.add(action.playerId);
-                    }
-                }else if(action.actionType === "PLACE_BOMB"){
-                    const player = this.players.get(action.playerId);
+            switch (action.actionType) {
+                case 'MOVE_UP':
+                    this.handlePlayerMove(player, 'UP', hasMoved);
+                    break;
+                case 'MOVE_DOWN':
+                    this.handlePlayerMove(player, 'DOWN', hasMoved);
+                    break;
+                case 'MOVE_LEFT':
+                    this.handlePlayerMove(player, 'LEFT', hasMoved);
+                    break;
+                case 'MOVE_RIGHT':
+                    this.handlePlayerMove(player, 'RIGHT', hasMoved);
+                    break;
+                case 'PLACE_BOMB':
+                    this.playerPlaceBomb(player);
+                    break;
+                default:
+                    break;
+            }
 
-                    if(player){
-                        this.playerPlaceBomb(player);
-                    }
-                }
-
-                // TODO:: ajouter le pick up des power-up
+            // TODO:: ajouter le pick up des power-up
         }
+    }
+
+    /**
+     * Gère la tentative de déplacement d'un joueur dans une direction donnée
+     * @param player L'état du joueur
+     * @param direction La direction demandée
+     * @param hasMoved Ensemble des joueurs ayant déjà bougé durant ce tick
+     */
+    private handlePlayerMove(player: PlayerState, direction: Direction, hasMoved: Set<string>): void {
+        if (hasMoved.has(player.id)) return;
+        this.movePlayerTo(player, direction);
+        hasMoved.add(player.id);
     }
 
     /**
@@ -209,7 +229,7 @@ export class GameEngine extends EventEmitter {
      * @param player L'état du joueur
      * @param direction La direction du mouvement
      */
-    private movePlayerTo(player: PlayerState, direction: string): void {
+    private movePlayerTo(player: PlayerState, direction: Direction): void {
         if(!player.isAlive) return;
         
         const newPos = { x: player.position.x, y: player.position.y };
@@ -227,12 +247,28 @@ export class GameEngine extends EventEmitter {
             case 'RIGHT':
                 newPos.x += player.speed;
                 break;
-            default:
-                break;
         }
 
         if (this.canMoveTo(newPos.x, newPos.y)) {
             player.position = newPos;
+
+            // Si le joueur marche sur une case où une explosion est active, il est éliminé
+            this.checkPlayerExplosionCollision(player);
+        }
+    }
+
+    /**
+     * Vérifie si un joueur se trouve sur une déflagration active et l'élimine le cas échéant
+     * @param player Le joueur à vérifier
+     */
+    private checkPlayerExplosionCollision(player: PlayerState): void {
+        const isInExplosion = this.bombManager.getExplosions().some(
+            exp => exp.position.x === player.position.x && exp.position.y === player.position.y
+        );
+
+        if (isInExplosion) {
+            player.isAlive = false;
+            this.emit('playerEliminated', { playerId: player.id });
         }
     }
 
