@@ -215,7 +215,7 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
   });
 
   describe('Gestion de la file d actions (Intégration)', () => {
-    it('devrait exécuter plusieurs actions séquentielles d un joueur dans le même tick (FIFO)', () => {
+    it('ne devrait autoriser qu un seul déplacement par joueur par tick', () => {
       setCell(1, 2, CellType.EMPTY);
       setCell(2, 2, CellType.EMPTY);
 
@@ -223,8 +223,8 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
       engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_RIGHT' });
       engine.tick();
 
-      // Doit avoir exécuté bas (1,2) puis droite (2,2)
-      expect(getPlayer('p1').position).toEqual({ x: 2, y: 2 });
+      // Seul le premier déplacement vers le bas (1, 2) est exécuté durant ce tick
+      expect(getPlayer('p1').position).toEqual({ x: 1, y: 2 });
     });
 
     it('devrait vider la file après le tick et ne pas ré-exécuter les actions', () => {

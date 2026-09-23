@@ -149,6 +149,17 @@ export class GameEngine extends EventEmitter {
      * Traite les actions demandées par les joueurs
      */
     private processActions(): void {
+
+        // On vérifie que le jeu est bien en cours
+        if (this.status !== 'IN_PROGRESS') {
+            this.actionFile = [];
+            return;
+        }
+
+        // Ensemble des joueurs ayant déjà effectué un déplacement durant ce tick
+        const hasMoved = new Set<string>();
+
+        // on traite les actions en attente
         while(this.actionFile.length > 0) {
             const action = this.actionFile.shift();
                 if(!action) continue; // Si action est undefined, on passe à l'itération suivante
@@ -156,11 +167,11 @@ export class GameEngine extends EventEmitter {
                 if(action.actionType.toString().startsWith("MOVE")){
                     const player = this.players.get(action.playerId);
 
-                    if(player){
-                        // action type = 'MOVE_UP', 'MOVE_DOWN', 'MOVE_LEFT', 'MOVE_RIGHT'
+                    // on vérifie que le joueur existe et qu'il n'a pas déjà bougé durant ce tick
+                    if(player && !hasMoved.has(action.playerId)){
                         this.movePlayerTo(player, action.actionType.toString().split("_")[1]);
+                        hasMoved.add(action.playerId);
                     }
-                    
                 }else if(action.actionType === "PLACE_BOMB"){
                     const player = this.players.get(action.playerId);
 
@@ -168,6 +179,8 @@ export class GameEngine extends EventEmitter {
                         this.playerPlaceBomb(player);
                     }
                 }
+
+                // TODO:: ajouter le pick up des power-up
         }
     }
 
@@ -181,6 +194,12 @@ export class GameEngine extends EventEmitter {
 
         // si la case est un mur ou une bordure, on ne peut pas se déplacer
         if(this.map.get(targetX, targetY) !== CellType.EMPTY) return false;
+
+        // si la case est déjà occupée par une bombe, on ne peut pas se déplacer
+        const hasBomb = this.bombManager.getBombs().some(
+            b => b.position.x === targetX && b.position.y === targetY
+        );
+        if (hasBomb) return false;
        
         return true;
     }
