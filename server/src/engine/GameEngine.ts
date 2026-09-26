@@ -8,7 +8,8 @@ import {
     DEFAULT_GAME_CONFIG,
     getSpawnPositions,
     CellType,
-    Direction
+    Direction,
+    Position
 } from '@bomberman/shared';
 
 
@@ -24,6 +25,9 @@ export class GameEngine extends EventEmitter {
     private bombManager: BombManager;
     private actionFile: PlayerAction[];
     private gameLoopInterval: NodeJS.Timeout | null = null;
+    
+    private suddenDeathIndex: number = 0;
+    private suddenDeathPositions: Position[] = [];
 
     constructor() {
         super();
@@ -33,6 +37,32 @@ export class GameEngine extends EventEmitter {
         this.bombManager = new BombManager(DEFAULT_GAME_CONFIG.bombCountdownTicks, DEFAULT_GAME_CONFIG.explosionDurationTicks);
         this.players = new Map();
         this.actionFile = [];
+        this.suddenDeathIndex = 0;
+        this.suddenDeathPositions = this.generateSpiralPositions(DEFAULT_GAME_CONFIG.gridWidth, DEFAULT_GAME_CONFIG.gridHeight);
+    }
+
+    /**
+     * Génère les positions pour le mode Sudden Death (en spirale vers le centre de la carte)
+     */
+    private generateSpiralPositions(width: number, height: number): Position[] {
+        const positions: Position[] = [];
+        let left = 1, right = width - 2, top = 1, bottom = height - 2;
+
+        while (left <= right && top <= bottom) {
+            for (let i = left; i <= right; i++) positions.push({ x: i, y: top });
+            top++;
+            for (let i = top; i <= bottom; i++) positions.push({ x: right, y: i });
+            right--;
+            if (top <= bottom) {
+                for (let i = right; i >= left; i--) positions.push({ x: i, y: bottom });
+                bottom--;
+            }
+            if (left <= right) {
+                for (let i = bottom; i >= top; i--) positions.push({ x: left, y: i });
+                left++;
+            }
+        }
+        return positions;
     }
 
     /**
@@ -63,6 +93,26 @@ export class GameEngine extends EventEmitter {
         tickResult.eliminatedPlayers.forEach(playerId => {
             this.emit('playerEliminated', { playerId });
         });
+
+        // Gestion de la Mort Subite (Sudden Death)
+        if (this.tickCount > DEFAULT_GAME_CONFIG.gameDurationTicks) {
+            const overTime = this.tickCount - DEFAULT_GAME_CONFIG.gameDurationTicks;
+            
+            if (overTime % DEFAULT_GAME_CONFIG.suddenDeathDropIntervalTicks === 0) {
+                if (this.suddenDeathIndex < this.suddenDeathPositions.length) {
+                    const pos = this.suddenDeathPositions[this.suddenDeathIndex++];
+                    this.map.setCell(pos.x, pos.y, CellType.INDESTRUCTIBLE_WALL);
+                    
+                    // Éliminer tout joueur écrasé par le bloc
+                    this.players.forEach(p => {
+                        if (p.isAlive && p.position.x === pos.x && p.position.y === pos.y) {
+                            p.isAlive = false;
+                            this.emit('playerEliminated', { playerId: p.id });
+                        }
+                    });
+                }
+            }
+        }
 
         // TODO: Vérifier les conditions de GAME_OVER (ex: s'il ne reste qu'un seul joueur en vie ou 0)
 
