@@ -1,4 +1,4 @@
-import { BombState, ExplosionCell, PlayerState, CellType, BombExplodedPayload } from '@bomberman/shared';
+import { BombState, ExplosionCell, PlayerState, CellType, BombExplodedPayload, DEFAULT_GAME_CONFIG } from '@bomberman/shared';
 import { Map as GameMap } from '../map/Map.js';
 
 /**
@@ -70,7 +70,7 @@ export class BombManager {
         this.bombs = this.bombs.filter(b => currentTick < b.explodeAtTick);
 
         const explodedBombs: BombExplodedPayload[] = [];
-        const eliminatedPlayers: Set<string> = new Set();
+        const eliminatedPlayers: string[] = [];
 
         while (bombsToExplode.length > 0) {
             const bomb = bombsToExplode.shift()!;
@@ -83,7 +83,7 @@ export class BombManager {
 
             const res = this.exploser(bomb, currentTick, map, players);
             explodedBombs.push(res.bombPayload);
-            res.eliminatedPlayers.forEach(p => eliminatedPlayers.add(p));
+            res.eliminatedPlayers.forEach(p => eliminatedPlayers.push(p));
 
             // Réactions en chaîne : on vérifie si l'explosion touche d'autres bombes
             for (const cell of res.bombPayload.affectedCells) {
@@ -95,7 +95,7 @@ export class BombManager {
             }
         }
 
-        return { explodedBombs, eliminatedPlayers: Array.from(eliminatedPlayers) };
+        return { explodedBombs, eliminatedPlayers };
     }
 
     /**
@@ -142,6 +142,8 @@ export class BombManager {
                 // Destruction du premier mur destructible rencontré, puis arrêt du souffle
                 if (cell === CellType.DESTRUCTIBLE_WALL) {
                     map.setCell(nx, ny, CellType.EMPTY);
+                    const owner = players.get(bomb.ownerId);
+                    if (owner) owner.score = (owner.score || 0) + DEFAULT_GAME_CONFIG.ExplosionScore;
                     break;
                 }
             }
@@ -157,6 +159,10 @@ export class BombManager {
                 if (player.isAlive && player.position.x === pos.x && player.position.y === pos.y) {
                     player.isAlive = false;
                     eliminatedPlayers.push(id);
+                    if (id !== bomb.ownerId) {
+                        const killer = players.get(bomb.ownerId);
+                        if (killer) killer.score = (killer.score || 0) + DEFAULT_GAME_CONFIG.KillScore;
+                    }
                 }
             }
         }

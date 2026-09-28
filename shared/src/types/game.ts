@@ -41,6 +41,9 @@ export interface GameConfig {
   explosionDurationTicks: number;
   gameDurationTicks: number;
   suddenDeathDropIntervalTicks: number;
+  ExplosionScore: number;
+  KillScore: number;
+  PowerUpScore: number;
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
@@ -51,6 +54,9 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   explosionDurationTicks: 10,
   gameDurationTicks: 2400, // 2 minutes (120s * 20 ticks)
   suddenDeathDropIntervalTicks: 10, // Un bloc toutes les 0.5s
+  ExplosionScore: 50,
+  KillScore: 100,
+  PowerUpScore: 200,
 };
 
 /**
@@ -131,3 +137,23 @@ export function isSafeCornerCell(
 ): boolean {
   return getSafeCornerCells(width, height).some(cell => cell.x === x && cell.y === y);
 }
+
+export const SCORE_VALUES = {
+  DESTROY_WALL: 50,
+  PICKUP_POWERUP: 200,
+  ELIMINATE_PLAYER: 500,
+};
+
+/**
+ * Incrémente le score d'un joueur spécifique dans l'état du jeu.
+ * @param players L'état actuel des joueurs (Map ou Record).
+ * @param playerId L'ID du joueur dont on veut incrémenter le score.
+ * @param points Le nombre de points à ajouter.
+ */
+export function incrementPlayerScore(players: Record<string, PlayerState> | Map<string, PlayerState>, playerId: string, points: number): void {
+  const player = players instanceof Map ? players.get(playerId) : players[playerId];
+  if (player) {
+    player.score = (player.score || 0) + points;
+  }
+}
+

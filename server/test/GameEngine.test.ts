@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { DEFAULT_GAME_CONFIG, getSafeCornerCells, getSpawnPositions, isSafeCornerCell, CellType } from '@bomberman/shared';
+import { DEFAULT_GAME_CONFIG, getSafeCornerCells, getSpawnPositions, isSafeCornerCell, CellType, PlayerState } from '@bomberman/shared';
 import { GameEngine } from '../src/engine/GameEngine.js';
 
 describe('GameEngine - Tests unitaires primitifs', () => {
@@ -56,7 +56,7 @@ describe('GameEngine - Tests unitaires primitifs', () => {
 
     engine.initPlayers(lobbyPlayers);
 
-    expect(Object.values(engine.obtenirEtatActuel().players).map((player: any) => player.position)).toEqual([      { x: 1, y: 1 },
+    expect(Object.values(engine.obtenirEtatActuel().players).map((player: PlayerState) => player.position)).toEqual([      { x: 1, y: 1 },
       { x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: 1 },
       { x: 1, y: DEFAULT_GAME_CONFIG.gridHeight - 2 },
       { x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: DEFAULT_GAME_CONFIG.gridHeight - 2 }

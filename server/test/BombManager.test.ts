@@ -71,6 +71,7 @@ describe('BombManager', () => {
           currentBombs: 0,
           bombRange: 2,
           speed: 1,
+          score: 0,
         },
       ],
     ]);
@@ -120,6 +121,7 @@ describe('BombManager', () => {
       currentBombs: 1,
       bombRange: 2,
       speed: 1,
+      score: 0,
     };
     const players = new Map<string, PlayerState>([['p1', player]]);
 
@@ -127,5 +129,98 @@ describe('BombManager', () => {
     bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players);
 
     expect(player.currentBombs).toBe(0);
+  });
+
+  it('incrémente le score (ExplosionScore) lorsqu un mur destructible est détruit', () => {
+    const bombManager = new BombManager(
+      DEFAULT_GAME_CONFIG.bombCountdownTicks,
+      DEFAULT_GAME_CONFIG.explosionDurationTicks
+    );
+    const map = createEmptyGrid();
+    const player: PlayerState = {
+      id: 'p1',
+      name: 'Alice',
+      position: { x: 1, y: 1 },
+      isAlive: true,
+      maxBombs: 1,
+      currentBombs: 0,
+      bombRange: 2,
+      speed: 1,
+      score: 0,
+    };
+    const players = new Map<string, PlayerState>([['p1', player]]);
+    map.setCell(2, 1, CellType.DESTRUCTIBLE_WALL);
+    
+    bombManager.placerBombe('p1', 1, 1, 2, 10);
+    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players);
+
+    expect(map.get(2, 1)).toBe(CellType.EMPTY);
+    expect(player.score).toBe(DEFAULT_GAME_CONFIG.ExplosionScore);
+  });
+
+  it('incrémente le score (KillScore) lorsqu un autre joueur est éliminé', () => {
+    const bombManager = new BombManager(
+      DEFAULT_GAME_CONFIG.bombCountdownTicks,
+      DEFAULT_GAME_CONFIG.explosionDurationTicks
+    );
+    const map = createEmptyGrid();
+    const killer: PlayerState = {
+      id: 'killer',
+      name: 'Alice',
+      position: { x: 1, y: 1 },
+      isAlive: true,
+      maxBombs: 1,
+      currentBombs: 0,
+      bombRange: 2,
+      speed: 1,
+      score: 0,
+    };
+    const victim: PlayerState = {
+      id: 'victim',
+      name: 'Bob',
+      position: { x: 2, y: 1 },
+      isAlive: true,
+      maxBombs: 1,
+      currentBombs: 0,
+      bombRange: 2,
+      speed: 1,
+      score: 0,
+    };
+    const players = new Map<string, PlayerState>([
+      ['killer', killer],
+      ['victim', victim]
+    ]);
+    
+    bombManager.placerBombe('killer', 1, 1, 2, 10);
+    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players);
+
+    expect(victim.isAlive).toBe(false);
+    expect(killer.score).toBe(DEFAULT_GAME_CONFIG.KillScore);
+  });
+
+  it('ne donne pas de points lors d un suicide', () => {
+    const bombManager = new BombManager(
+      DEFAULT_GAME_CONFIG.bombCountdownTicks,
+      DEFAULT_GAME_CONFIG.explosionDurationTicks
+    );
+    const map = createEmptyGrid();
+    const player: PlayerState = {
+      id: 'suicidal',
+      name: 'Alice',
+      position: { x: 1, y: 1 },
+      isAlive: true,
+      maxBombs: 1,
+      currentBombs: 0,
+      bombRange: 2,
+      speed: 1,
+      score: 10,
+    };
+    const players = new Map<string, PlayerState>([['suicidal', player]]);
+    
+    bombManager.placerBombe('suicidal', 1, 1, 2, 10);
+    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players);
+
+    expect(player.isAlive).toBe(false);
+    expect(player.score).toBe(10);
   });
 });

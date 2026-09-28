@@ -11,4 +11,5 @@ export interface PlayerState {
   bombRange: number;
   speed: number;
   color?: string;
+  score: number;
 }
