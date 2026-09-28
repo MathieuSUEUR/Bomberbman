@@ -39,6 +39,8 @@ export interface GameConfig {
   gridHeight: number;
   bombCountdownTicks: number;
   explosionDurationTicks: number;
+  gameDurationTicks: number;
+  suddenDeathDropIntervalTicks: number;
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
@@ -47,6 +49,8 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   gridHeight: 13,
   bombCountdownTicks: 60,
   explosionDurationTicks: 10,
+  gameDurationTicks: 2400, // 2 minutes (120s * 20 ticks)
+  suddenDeathDropIntervalTicks: 10, // Un bloc toutes les 0.5s
 };
 
 /**
