@@ -1,0 +1,28 @@
+# Serveur de jeu Bomberman Arena : docker compose up --build
+# Le client (Electron) n'est pas dockérisé : il se lance à part et se connecte à ws://localhost:3000.
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    image: bomberman-arena-server
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    restart: unless-stopped
+    # Vérifie que le port WebSocket accepte les connexions (simple connexion TCP,
+    # pour ne pas créer de faux joueur côté SocketManager)
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('net').connect(process.env.PORT, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s

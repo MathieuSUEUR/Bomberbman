@@ -1,0 +1,18 @@
+# Contexte envoyé à Docker (build depuis la racine, voir server/Dockerfile)
+**/node_modules
+**/dist
+**/dist-electron
+**/coverage
+*.log
+.env
+*.env
+
+.git
+.github
+.claude
+.vscode
+docs
+
+# Du client, seul le package.json est nécessaire (déclaration du workspace npm)
+client/*
+!client/package.json
