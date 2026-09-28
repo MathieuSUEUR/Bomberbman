@@ -354,6 +354,9 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
       engine.ajouterAction({ playerId: 'p1', actionType: 'PLACE_BOMB' });
       engine.tick();
 
+      // On met p1 à l'abri hors de portée de l'explosion
+      getInternalPlayers().get('p1')!.position = { x: 5, y: 5 };
+
       // On avance jusqu'au tick où la bombe explose
       const countdown = DEFAULT_GAME_CONFIG.bombCountdownTicks;
       for (let i = 0; i < countdown; i++) {

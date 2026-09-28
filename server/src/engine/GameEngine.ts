@@ -9,7 +9,8 @@ import {
     getSpawnPositions,
     CellType,
     Direction,
-    Position
+    Position,
+    GameOverPayload
 } from '@bomberman/shared';
 
 
@@ -114,7 +115,21 @@ export class GameEngine extends EventEmitter {
             }
         }
 
-        // TODO: Vérifier les conditions de GAME_OVER (ex: s'il ne reste qu'un seul joueur en vie ou 0)
+        // si le jeu est terminé, on arrête la boucle de jeu et on émet un événement de fin de partie
+        if (this.checkGameOver()) {
+            this.status = 'FINISHED';
+            this.stopGameLoop();
+
+            const livingPlayers = Array.from(this.players.values()).filter(p => p.isAlive);
+            const winner = livingPlayers.length === 1 ? livingPlayers[0] : null;
+
+            const gameOverPayload: GameOverPayload = {
+                winnerId: winner ? winner.id : null,
+                winnerName: winner ? winner.name : null
+            };
+
+            this.emit('gameOver', gameOverPayload);
+        }
 
         return this.obtenirEtatActuel();
     }
@@ -341,5 +356,17 @@ export class GameEngine extends EventEmitter {
         // on place la bombe
         this.bombManager.placerBombe(player.id, player.position.x, player.position.y, player.bombRange, this.tickCount);
         player.currentBombs++;
+    }
+
+    /**
+     * Vérifie si le jeu est terminé 
+     * @returns boolean True si le jeu est terminé, false sinon
+     */
+    private checkGameOver(): boolean {
+        if (this.status !== 'IN_PROGRESS' || this.players.size < 2) {
+            return false;
+        }
+        const livingPlayers = Array.from(this.players.values()).filter(p => p.isAlive);
+        return livingPlayers.length <= 1;
     }
 }
