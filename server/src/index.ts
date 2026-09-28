@@ -2,9 +2,24 @@ import { GameEngine } from './engine/GameEngine.js';
 import { DEFAULT_GAME_CONFIG } from '@bomberman/shared';
 import { SocketManager } from './network/SocketManager.js';
 
+// Port d'écoute : variable d'environnement PORT (Docker), 3000 par défaut (port attendu par le client)
+const PORT = Number(process.env.PORT) || 3000;
+
 const engine = new GameEngine();
-// On instancie le SocketManager pour qu'il écoute le port 8080, sans assigner de variable inutilisée
-new SocketManager(8080, engine);
+const socketManager = new SocketManager(PORT, engine);
+
+/**
+ * Arrêt propre du serveur (docker stop / Ctrl+C).
+ * Dans un conteneur, node est le PID 1 et ignore SIGTERM s'il n'est pas géré explicitement.
+ */
+async function shutdown(signal: NodeJS.Signals) {
+  console.info(`Signal ${signal} reçu, arrêt du serveur...`);
+  await socketManager.close();
+  process.exit(0);
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 // 20 ticks par seconde (1000ms / 20 = 50ms)
 const TICK_INTERVAL_MS = 1000 / DEFAULT_GAME_CONFIG.tickRate;

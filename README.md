@@ -63,6 +63,30 @@ Toutes les commandes se lancent depuis la **racine** du monorepo :
 | `npm run format:check` | Verifie le formatage sans le modifier |
 | `npm test` | Execute la suite de tests automatises (Vitest) |
 
+Le serveur ecoute sur le port `3000` (modifiable avec la variable d'environnement `PORT`), port auquel le client se connecte.
+
+---
+
+## Lancer le serveur avec Docker
+
+Seul le serveur est dockerise, le client se lance a part (`npm run dev:client`) et se connecte a `ws://localhost:3000`.
+Prerequis : Docker (Docker Desktop sous Windows/macOS) avec Docker Compose v2.
+
+```bash
+# Construire l'image et demarrer le serveur (attend que le conteneur soit "healthy")
+docker compose up -d --build --wait
+
+# Suivre les logs du serveur
+docker compose logs -f
+
+# Arreter et supprimer le conteneur
+docker compose down
+```
+
+- L'image est definie dans `server/Dockerfile` (build multi-etapes : compilation TypeScript de `shared` + `server`, puis image finale avec les seules dependances de production).
+- Le contexte de build est la racine du monorepo (le serveur depend du workspace `@bomberman/shared`) : pour construire l'image sans Compose, `docker build -f server/Dockerfile -t bomberman-arena-server .` depuis la racine.
+- La CI construit et demarre l'image a chaque push/PR (job `docker` de `.github/workflows/ci.yml`).
+
 ---
 
 ## Structure du Monorepo
@@ -79,6 +103,7 @@ Bomberbman/
 │   └── package.json
 ├── server/                      # Pole Backend (Node.js + WebSockets)
 │   ├── src/                     # Code source serveur (Game engine, boucle de jeu)
+│   ├── Dockerfile               # Image Docker du serveur (build depuis la racine)
 │   └── package.json
 ├── shared/                      # Contrats partages (Client & Serveur)
 │   ├── src/                     # Types TypeScript, constantes, protocole JSON
@@ -87,6 +112,7 @@ Bomberbman/
 │   ├── architecture.md
 │   ├── gitflow.md
 │   └── websocket-protocol.md
+├── docker-compose.yml           # Lancement du serveur dans Docker
 ├── package.json                 # Configuration racine des npm workspaces
 └── tsconfig.base.json           # Options TypeScript partagees
 ```
