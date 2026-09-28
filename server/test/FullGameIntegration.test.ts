@@ -5,7 +5,6 @@ import { SocketManager } from '../src/network/SocketManager.js';
 import {
   ServerMessage,
   ClientMessage,
-  DEFAULT_GAME_CONFIG,
   CellType
 } from '@bomberman/shared';
 
