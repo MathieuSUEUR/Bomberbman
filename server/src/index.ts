@@ -1,6 +1,5 @@
 import { GameEngine } from './engine/GameEngine.js';
 import { DEFAULT_GAME_CONFIG } from '@bomberman/shared';
-import { generateGrid, debugMap } from './map/MapGenerator.js';
 import { SocketManager } from './network/SocketManager.js';
 
 // Port d'écoute : variable d'environnement PORT (Docker), 3000 par défaut (port attendu par le client)
@@ -41,10 +40,7 @@ async function gameLoop(){
 
       // si le tick est trop lent on le log
       if(deltaTime > TICK_INTERVAL_MS * 2){
-
-        // on récupère l'état actuel du jeu
-        const state = engine.obtenirEtatActuel();
-        console.warn(`Tick ${state.tick} - Status: ${state.status} - Tick trop lent: ${deltaTime.toFixed(2)}ms`);
+        console.warn(`Tick trop lent: ${deltaTime.toFixed(2)}ms`);
       }
 
       LastTickTime = now - (deltaTime % TICK_INTERVAL_MS); // on applique on la compensation du deltaTime pour éviter les dérives de tick
