@@ -47,7 +47,7 @@ jobs:
       - name: Installer les dépendances
         run: npm ci
       - name: Lint
-        run: npm run lint
+        run: npm run lint -- --max-warnings 0
         working-directory: ${{ matrix.workspace }}
       - name: Build
         run: npm run build
