@@ -93,15 +93,33 @@ export class BombManager {
         
 
         const explodedBombs: BombExplodedPayload[] = [];
-        const eliminatedPlayers: string[] = [];
+        const eliminatedPlayers: Set<string> = new Set();
+
+        while (bombsToExplode.length > 0) {
+            const bomb = bombsToExplode.shift()!;
+            
+            // Récupération de la bombe pour le joueur
+            const owner = players.get(bomb.ownerId);
+            if (owner && owner.currentBombs > 0) {
+                owner.currentBombs--;
+            }
 
         for (const bomb of bombsAExploser) {
             const res = this.exploser(bomb, currentTick, map, players, powerUps);
             explodedBombs.push(res.bombPayload);
-            eliminatedPlayers.push(...res.eliminatedPlayers);
+            res.eliminatedPlayers.forEach(p => eliminatedPlayers.add(p));
+
+            // Réactions en chaîne : on vérifie si l'explosion touche d'autres bombes
+            for (const cell of res.bombPayload.affectedCells) {
+                const hitBombIndex = this.bombs.findIndex(b => b.position.x === cell.x && b.position.y === cell.y);
+                if (hitBombIndex !== -1) {
+                    const hitBomb = this.bombs.splice(hitBombIndex, 1)[0];
+                    bombsToExplode.push(hitBomb);
+                }
+            }
         }
 
-        return { explodedBombs, eliminatedPlayers };
+        return { explodedBombs, eliminatedPlayers: Array.from(eliminatedPlayers) };
     }
 
     /**
@@ -137,6 +155,13 @@ export class BombManager {
 
                 cellsExplosion.push({ x: nx, y: ny });
 
+                // Arrêt si on rencontre une autre bombe (elle va exploser en chaîne)
+                const hasBomb = this.bombs.some(b => b.position.x === nx && b.position.y === ny);
+                if (hasBomb) {
+                    break;
+                }
+
+                // Destruction du premier mur destructible rencontré, puis arrêt du souffle
                 if (cell === CellType.DESTRUCTIBLE_WALL) {
                     map.setCell(nx, ny, CellType.EMPTY);
                     this.tenterSpawnPowerUp(nx, ny, powerUps);

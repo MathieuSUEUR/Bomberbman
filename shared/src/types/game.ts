@@ -42,6 +42,8 @@ export interface GameConfig {
   powerUpDropPercentage: number;
   startingLives: number;
   invulnerabilityDurationTicks: number;
+  gameDurationTicks: number;
+  suddenDeathDropIntervalTicks: number;
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
@@ -54,6 +56,8 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   powerUpDropPercentage: 33,
   startingLives: 1,
   invulnerabilityDurationTicks: 100,
+  gameDurationTicks: 2400, // 2 minutes (120s * 20 ticks)
+  suddenDeathDropIntervalTicks: 10, // Un bloc toutes les 0.5s
 };
 
 /**
