@@ -24,8 +24,10 @@ export class BombManager {
     }
 
     /**
-     * Depose une bombe si la case est libre.
-     * countdownTicks vient du joueur (modifie par le power-up REDUCED_BOMB_DELAY).
+     * Depose une bombe a la position du joueur si son stock le permet et si la case est libre.
+     * Consomme une bombe du stock et demarre le chrono de recharge s'il ne tourne pas deja.
+     * La meche est fixe (DEFAULT_GAME_CONFIG.bombCountdownTicks).
+     * Retourne true si la bombe a ete posee.
      */
     public placerBombe(player: PlayerState, currentTick: number): boolean {
         if (!player.isAlive || player.bombStock <= 0) return false;
@@ -50,7 +52,10 @@ export class BombManager {
         return true;
     }
 
-
+    /**
+     * Rend une bombe aux joueurs dont le chrono de recharge est arrive a echeance.
+     * Le chrono redemarre tant que le stock n'est pas plein.
+     */
     private rechargerBombes(currentTick: number, players: Map<string, PlayerState>): void {
         for (const player of players.values()) {
             if (!player.isAlive) continue;
@@ -75,7 +80,9 @@ export class BombManager {
     }
 
     /**
-     * Nettoie les flammes expirees puis fait exploser les bombes arrivees a echeance.
+     * Nettoie les flammes expirees, recharge les bombes des joueurs, puis fait exploser
+     * les bombes arrivees a echeance. Une explosion qui touche une autre bombe la fait
+     * exploser dans le meme tick (reaction en chaine).
      * La liste powerUps est modifiee en place quand un mur detruit fait apparaitre un bonus.
      */
     public tick(
@@ -87,21 +94,29 @@ export class BombManager {
         this.explosions = this.explosions.filter(e => e.expiresAtTick > currentTick);
 
         this.rechargerBombes(currentTick, players);
-        
+
         const bombsAExploser = this.bombs.filter(b => currentTick >= b.explodeAtTick);
         this.bombs = this.bombs.filter(b => currentTick < b.explodeAtTick);
-        
 
         const explodedBombs: BombExplodedPayload[] = [];
-        const eliminatedPlayers: string[] = [];
+        const eliminatedPlayers = new Set<string>();
 
+        // Un for...of sur un tableau parcourt aussi les elements ajoutes pendant la boucle :
+        // les bombes declenchees en chaine sont donc traitees dans le meme tick.
         for (const bomb of bombsAExploser) {
             const res = this.exploser(bomb, currentTick, map, players, powerUps);
             explodedBombs.push(res.bombPayload);
-            eliminatedPlayers.push(...res.eliminatedPlayers);
+            res.eliminatedPlayers.forEach(id => eliminatedPlayers.add(id));
+
+            for (const cell of res.bombPayload.affectedCells) {
+                const index = this.bombs.findIndex(b => b.position.x === cell.x && b.position.y === cell.y);
+                if (index !== -1) {
+                    bombsAExploser.push(this.bombs.splice(index, 1)[0]);
+                }
+            }
         }
 
-        return { explodedBombs, eliminatedPlayers };
+        return { explodedBombs, eliminatedPlayers: [...eliminatedPlayers] };
     }
 
     /**
