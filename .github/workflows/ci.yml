@@ -16,6 +16,8 @@ on:
       - 'eslint.config.mjs'
       - 'vitest.config.ts'
       - '.github/workflows/ci.yml'
+      - 'docker-compose.yml'
+      - '.dockerignore'
   pull_request:
     branches: [main, develop]
     paths:
@@ -28,6 +30,8 @@ on:
       - 'eslint.config.mjs'
       - 'vitest.config.ts'
       - '.github/workflows/ci.yml'
+      - 'docker-compose.yml'
+      - '.dockerignore'
 
 jobs:
   build-and-test:
@@ -47,7 +51,7 @@ jobs:
       - name: Installer les dépendances
         run: npm ci
       - name: Lint
-        run: npm run lint
+        run: npm run lint -- --max-warnings 0
         working-directory: ${{ matrix.workspace }}
       - name: Build
         run: npm run build
@@ -62,3 +66,18 @@ jobs:
           name: coverage-${{ matrix.workspace }}
           path: ${{ matrix.workspace }}/coverage
           if-no-files-found: ignore
+
+  # Vérifie à froid que l'image du serveur se construit et démarre (section 6.1 du guide DevOps).
+  # --wait attend que le healthcheck du docker-compose.yml passe au vert, sinon le job échoue.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build et démarrage du serveur (docker compose)
+        run: docker compose up -d --build --wait
+      - name: Logs du conteneur
+        if: always()
+        run: docker compose logs
+      - name: Arrêt
+        if: always()
+        run: docker compose down

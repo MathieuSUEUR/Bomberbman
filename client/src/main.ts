@@ -29,8 +29,8 @@ const mockGameState = {
         [1, 1, 1, 1, 1, 1, 1],
     ],
     players: [
-        { id: 'p1', x: 1, y: 1 } // Bomberman commence en x:1, y:1
-    ]
+    { id: 'p1', x: 1, y: 1, direction: 'DOWN' }
+]
 };
 
 // 5. Événement du bouton pour lancer le test
@@ -42,29 +42,45 @@ btnStartMock.addEventListener('click', () => {
     eventBus.emit('GAME_STATE_UPDATE', mockGameState); 
 });
 
-// 6. Faux serveur : On écoute le clavier pour bouger le joueur
+// 6. Faux Serveur : Gestion continue des déplacements
+const activeDirections = new Set<string>(); // Mémorise les touches enfoncées
+
 eventBus.on('USER_ACTION', (action: unknown) => {
-    const keyboardAction = action as { type: string, payload: { direction: string } };
-    if (keyboardAction.type === 'MOVE') {
-        // ... reste du code : if (keyboardAction.payload.direction === 'UP') etc.
-        const player = mockGameState.players[0]; // On prend notre joueur
-        let newX = player.x;
-        let newY = player.y;
-
-        // Calcul de la nouvelle position souhaitée
-        if (keyboardAction.payload.direction === 'UP') newY -= 1;
-        if (keyboardAction.payload.direction === 'DOWN') newY += 1;
-        if (keyboardAction.payload.direction === 'LEFT') newX -= 1;
-        if (keyboardAction.payload.direction === 'RIGHT') newX += 1;
-
-        // Logique anti-triche : on vérifie si la case est libre (0)
-        if (mockGameState.grid[newY] && mockGameState.grid[newY][newX] === 0) {
-            // La voie est libre, on met à jour
-            player.x = newX;
-            player.y = newY;
-            
-            // On ordonne de redessiner l'écran
-            eventBus.emit('GAME_STATE_UPDATE', mockGameState);
-        }
-    }
+    const kbAction = action as { type: string, payload: { direction: string } };
+    
+    // On ajoute ou on retire la direction de la liste
+    if (kbAction.type === 'MOVE_START') activeDirections.add(kbAction.payload.direction);
+    if (kbAction.type === 'MOVE_END') activeDirections.delete(kbAction.payload.direction);
 });
+
+// 7. LA BOUCLE DE JEU (Game Loop - 60 FPS)
+setInterval(() => {
+    // S'il n'y a pas de mouvement, on ne fait rien pour économiser les ressources
+    if (activeDirections.size === 0) return;
+
+    const player = mockGameState.players[0];
+    const speed = 0.08; // Vitesse fluide (en fraction de case par frame)
+
+    let newX = player.x;
+    let newY = player.y;
+
+    // ...
+    if (activeDirections.has('UP')) { newY -= speed; player.direction = 'UP'; }
+    if (activeDirections.has('DOWN')) { newY += speed; player.direction = 'DOWN'; }
+    if (activeDirections.has('LEFT')) { newX -= speed; player.direction = 'LEFT'; }
+    if (activeDirections.has('RIGHT')) { newX += speed; player.direction = 'RIGHT'; }
+    // ...
+
+    // Logique anti-triche : Collision basique (Hitbox au centre du personnage)
+    // NB: L'équipe Backend fera une collision beaucoup plus précise.
+    const gridX = Math.round(newX);
+    const gridY = Math.round(newY);
+
+    if (mockGameState.grid[gridY] && mockGameState.grid[gridY][gridX] === 0) {
+        player.x = newX;
+        player.y = newY;
+        
+        // On ordonne un rafraîchissement visuel à chaque frame de mouvement
+        eventBus.emit('GAME_STATE_UPDATE', mockGameState);
+    }
+}, 1000 / 60); // Exécution environ 60 fois par seconde
