@@ -80,4 +80,52 @@ describe('BombManager', () => {
 
     expect(players.get('p1')?.isAlive).toBe(false);
   });
+
+  it('fait exploser en chaîne une autre bombe touchée par le souffle', () => {
+    const bombManager = new BombManager(
+      DEFAULT_GAME_CONFIG.bombCountdownTicks,
+      DEFAULT_GAME_CONFIG.explosionDurationTicks
+    );
+    const map = createEmptyGrid();
+    const players = new Map<string, PlayerState>();
+
+    // Bombe 1 en (4,4) posée au tick 10
+    bombManager.placerBombe('p1', 4, 4, 2, 10);
+    // Bombe 2 en (6,4) posée au tick 15 (dans le rayon de 2 de la première bombe)
+    bombManager.placerBombe('p2', 6, 4, 2, 15);
+
+    // Au tick 10 + countdown, la bombe 1 explose et touche la bombe 2
+    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players);
+
+    // Les deux bombes doivent avoir explosé
+    expect(bombManager.getBombs()).toHaveLength(0);
+    
+    // On vérifie qu'on a bien les flammes de la bombe 2
+    const explosions = bombManager.getExplosions();
+    expect(explosions.some(e => e.position.x === 6 && e.position.y === 4)).toBe(true);
+  });
+
+  it('récupère la bombe d un joueur après explosion (décrémente currentBombs)', () => {
+    const bombManager = new BombManager(
+      DEFAULT_GAME_CONFIG.bombCountdownTicks,
+      DEFAULT_GAME_CONFIG.explosionDurationTicks
+    );
+    const map = createEmptyGrid();
+    const player: PlayerState = {
+      id: 'p1',
+      name: 'Alice',
+      position: { x: 1, y: 1 },
+      isAlive: true,
+      maxBombs: 1,
+      currentBombs: 1,
+      bombRange: 2,
+      speed: 1,
+    };
+    const players = new Map<string, PlayerState>([['p1', player]]);
+
+    bombManager.placerBombe('p1', 1, 1, 1, 10);
+    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players);
+
+    expect(player.currentBombs).toBe(0);
+  });
 });
