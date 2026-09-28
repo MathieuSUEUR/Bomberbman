@@ -123,3 +123,59 @@ describe('GameEngine - Mort Subite (Sudden Death)', () => {
     expect(etat.players['p1'].isAlive).toBe(false);
   });
 });
+
+describe('GameEngine - Fin de partie (Game Over)', () => {
+  let engine: GameEngine;
+
+  beforeEach(() => {
+    engine = new GameEngine();
+    engine.initPlayers([
+      { id: 'p1', name: 'Alice', isReady: true },
+      { id: 'p2', name: 'Bob', isReady: true }
+    ]);
+  });
+
+  it('devrait émettre gameOver avec le gagnant, passer à FINISHED et stopper la boucle quand il reste 1 survivant', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let receivedPayload: any = null;
+    engine.on('gameOver', (payload) => {
+      receivedPayload = payload;
+    });
+
+    // Élimination de Bob (p2)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const internalPlayers = (engine as any).players as Map<string, any>;
+    internalPlayers.get('p2').isAlive = false;
+
+    const state = engine.tick();
+
+    expect(state.status).toBe('FINISHED');
+    expect(receivedPayload).toEqual({
+      winnerId: 'p1',
+      winnerName: 'Alice'
+    });
+  });
+
+  it('devrait émettre gameOver avec winnerId null en cas de match nul (0 survivant)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let receivedPayload: any = null;
+    engine.on('gameOver', (payload) => {
+      receivedPayload = payload;
+    });
+
+    // Élimination simultanée des deux joueurs
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const internalPlayers = (engine as any).players as Map<string, any>;
+    internalPlayers.get('p1').isAlive = false;
+    internalPlayers.get('p2').isAlive = false;
+
+    const state = engine.tick();
+
+    expect(state.status).toBe('FINISHED');
+    expect(receivedPayload).toEqual({
+      winnerId: null,
+      winnerName: null
+    });
+  });
+});
+

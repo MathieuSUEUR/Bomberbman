@@ -1,13 +1,15 @@
-import floorSrc from '../assets/sprites/floor.png'; // Ton ancien wall.png
-import grassSrc from '../assets/sprites/grass.png'; // Tes nouveaux obstacles
-import playerSrc from '../assets/sprites/bomberman.png';
+import floorSrc from '../assets/sprites/floor.png'; 
+import grassSrc from '../assets/sprites/grass.png'; 
+// ON IMPORTE LA NOUVELLE SPRITESHEET ICI :
+import playerSrc from '../assets/sprites/sprite-sheet.png'; 
 import { eventBus } from '../core/EventBus';
 
 export interface GameState {
     grid: number[][];
-    players: { id: string, x: number, y: number }[];
+    // On ajoute la direction pour satisfaire TypeScript
+    players: { id: string, x: number, y: number, direction?: string }[];
 }
-
+    
 export class GameRenderer {
     private ctx: CanvasRenderingContext2D;
     private tileSize = 50;
@@ -17,7 +19,7 @@ export class GameRenderer {
 
     constructor(canvas: HTMLCanvasElement) {
         this.ctx = canvas.getContext('2d')!;
-        this.ctx.imageSmoothingEnabled = false; // Rendu Pixel Art
+        this.ctx.imageSmoothingEnabled = false; 
         
         this.floorImg = new Image();
         this.floorImg.src = floorSrc;
@@ -42,33 +44,56 @@ export class GameRenderer {
                 const pixelX = x * this.tileSize;
                 const pixelY = y * this.tileSize;
 
-                // Le sol (floor) est dessiné partout en fond
                 this.ctx.drawImage(this.floorImg, pixelX, pixelY, this.tileSize, this.tileSize);
 
-                // Si c'est un obstacle (valeur 1 dans la grille), on dessine l'herbe par-dessus
                 if (state.grid[y][x] === 1) {
                     this.ctx.drawImage(this.grassImg, pixelX, pixelY, this.tileSize, this.tileSize);
                 }
             }
         }
 
-        // 2. Dessiner les joueurs avec l'effet de profondeur
+        // 2. Dessiner les joueurs avec animation et direction
         if (state.players) {
+            const spriteW = 16; 
+            const spriteH = 32;
+            const padding = 1; 
+            
+            // Si le joueur ne bouge pas, on pourrait bloquer l'animation, 
+            // mais on la laisse tourner pour l'instant.
+            const currentFrame = Math.floor(Date.now() / 150) % 3;
+
             for (const player of state.players) {
                 const pixelX = player.x * this.tileSize;
                 const pixelY = player.y * this.tileSize;
 
                 const drawWidth = this.tileSize;
-                const ratio = this.playerImg.height / this.playerImg.width;
+                const ratio = spriteH / spriteW;
                 const drawHeight = drawWidth * ratio;
                 const offsetY = this.tileSize - drawHeight;
 
+                const direction = player.direction || 'DOWN';
+
+                // Nouveau mapping : on indique la ligne (row) et la colonne de départ (col)
+                const animMap: Record<string, { row: number, colOffset: number }> = {
+                    'UP':    { row: 0, colOffset: 0 }, // Sprites 1, 2, 3
+                    'LEFT':  { row: 0, colOffset: 3 }, // Sprites 4, 5, 6
+                    'DOWN':  { row: 0, colOffset: 6 }, // Sprites 7, 8, 9 (à vérifier sur ton image)
+                    'RIGHT': { row: 0, colOffset: 9 }  // Sprites 10, 11, 12 (à vérifier)
+                };
+                
+                const anim = animMap[direction] || animMap['DOWN'];
+
+                // On additionne la colonne de départ et l'animation en cours (0, 1 ou 2)
+                const currentSpriteIndex = anim.colOffset + currentFrame;
+
+                // Calcul exact des coordonnées
+                const sourceX = currentSpriteIndex * (spriteW + padding);
+                const sourceY = anim.row * (spriteH + padding);
+
                 this.ctx.drawImage(
-                    this.playerImg, 
-                    pixelX, 
-                    pixelY + offsetY, 
-                    drawWidth, 
-                    drawHeight
+                    this.playerImg,
+                    sourceX, sourceY, spriteW, spriteH,
+                    pixelX, pixelY + offsetY, drawWidth, drawHeight
                 );
             }
         }
