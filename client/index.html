@@ -1,18 +1,137 @@
-<body>
-  <!-- L'interface utilisateur (Menu/Lobby) -->
-  <div id="lobby-screen" class="screen">
-    <h1>Bomberman Arena</h1>
-    <div class="players-list">
-      <p>En attente de joueurs...</p>
-      <ul id="players">
-        <li>Joueur 1 (Toi)</li>
-      </ul>
-    </div>
-    <button id="btn-start-mock">Lancer le Mocking (Test)</button>
-  </div>
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bomberman Arena - Jeu multijoueur d'action et stratégie</title>
+    <meta
+      name="description"
+      content="Bomberman Arena : menu principal et salon d'attente pour rejoindre des parties multijoueur en temps réel."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app" class="game-wrapper">
+      <!-- 1. Écran d'Accueil / Menu Principal -->
+      <section id="main-menu" class="screen menu-screen">
+        <div class="brand">
+          <div class="bomb-badge" aria-hidden="true">💣</div>
+          <h1 class="game-title">BOMBERMAN<span class="highlight">ARENA</span></h1>
+          <p class="game-subtitle">Bataille d'arène multijoueur en temps réel</p>
+        </div>
 
-  <!-- Ta zone de jeu (cachée par défaut) -->
-  <canvas id="game-canvas" style="display: none;"></canvas>
-  
-  <script type="module" src="/src/main.ts"></script>
-</body>
+        <div class="menu-card">
+          <div class="form-group">
+            <label for="player-name-input" class="form-label">Pseudo du joueur</label>
+            <div class="input-wrapper">
+              <span class="input-icon" aria-hidden="true">👤</span>
+              <input
+                type="text"
+                id="player-name-input"
+                class="text-input"
+                placeholder="Entre ton pseudo..."
+                value="Joueur 1"
+                maxlength="16"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+          </div>
+
+          <div class="menu-actions">
+            <button id="btn-join-game" class="btn btn-primary btn-large">
+              <span class="btn-icon" aria-hidden="true">🎮</span>
+              <span class="btn-text">Rejoindre une partie</span>
+            </button>
+
+            <button id="btn-start-mock" class="btn btn-secondary">
+              <span class="btn-icon" aria-hidden="true">⚡</span>
+              <span class="btn-text">Mode Entraînement (Test Solo)</span>
+            </button>
+          </div>
+
+          <div class="server-status-pill">
+            <span id="server-status-dot" class="status-dot"></span>
+            <span id="server-status-text">Vérification de la connexion...</span>
+          </div>
+        </div>
+
+        <footer class="controls-hint">
+          <p>
+            <span class="hint-label">Contrôles :</span>
+            <kbd>ZQSD</kbd> ou <kbd>Flèches</kbd> pour bouger • <kbd>Espace</kbd> pour poser une
+            bombe
+          </p>
+        </footer>
+      </section>
+
+      <!-- 2. Écran Salon d'Attente (Lobby) -->
+      <section id="lobby-screen" class="screen lobby-screen" style="display: none">
+        <header class="lobby-header">
+          <div class="lobby-title-wrap">
+            <div class="mini-bomb" aria-hidden="true">💣</div>
+            <div>
+              <h2 class="lobby-title">Salon d'attente</h2>
+              <p id="lobby-subtitle" class="lobby-desc">En attente d'autres joueurs...</p>
+            </div>
+          </div>
+          <div class="player-count-badge"><span id="player-count">1</span> / 4 joueurs</div>
+        </header>
+
+        <div class="players-card">
+          <div class="players-header">
+            <span>Joueurs connectés</span>
+            <span class="status-indicator live">● En direct</span>
+          </div>
+          <ul id="players" class="players-list">
+            <li class="player-item current-player">
+              <span class="player-avatar" aria-hidden="true">💣</span>
+              <span class="player-name" id="current-player-label">Joueur 1 (Toi)</span>
+              <span class="player-status-tag ready" id="current-player-status">Prêt</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="lobby-actions">
+          <button id="btn-ready" class="btn btn-primary">
+            <span class="btn-icon" aria-hidden="true">✅</span>
+            <span class="btn-text" id="btn-ready-text">Je suis prêt !</span>
+          </button>
+
+          <button id="btn-start-game" class="btn btn-accent">
+            <span class="btn-icon" aria-hidden="true">🚀</span>
+            <span class="btn-text">Lancer la partie</span>
+          </button>
+
+          <button id="btn-back-menu" class="btn btn-outline">
+            <span class="btn-icon" aria-hidden="true">⬅</span>
+            <span class="btn-text">Retour au menu</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 3. Zone de Jeu (Canvas) -->
+      <div id="game-container" class="game-container" style="display: none">
+        <header class="game-hud">
+          <div class="hud-left">
+            <span class="hud-logo">💣</span>
+            <span class="hud-title">BOMBERMAN ARENA</span>
+          </div>
+          <div class="hud-right">
+            <button id="btn-leave-game" class="btn btn-small btn-outline">Quitter la partie</button>
+          </div>
+        </header>
+        <div class="canvas-frame">
+          <canvas id="game-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
