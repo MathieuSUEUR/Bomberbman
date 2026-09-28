@@ -2,81 +2,71 @@
 
 ## État actuel
 
-Le serveur contient déjà les briques principales du moteur de jeu :
+Le serveur dispose d'une architecture complète, stable et testée reliant le moteur de jeu, la gestion des règles, et la couche réseau WebSocket :
 
-- une carte générée de façon procédurale
-- un moteur de jeu avec tick et état global
-- un gestionnaire de bombes avec explosions et éliminations
-- une couche réseau WebSocket avec lobby et start de partie
-- des règles de plateau partagées via le package `shared`
+- **Carte procédurale & règles partagées** : génération de grille, bordures, zones de sécurité des spawns, configuration partagée via `@bomberman/shared`.
+- **Moteur de jeu (`GameEngine`)** : boucle cadencée à 20 ticks/sec, état global (`GameState`), traitement des actions joueur (`MOVE_UP`, `MOVE_DOWN`, `MOVE_LEFT`, `MOVE_RIGHT`, `PLACE_BOMB`).
+- **Gestion des bombes & déflagrations (`BombManager`)** : compte à rebours, portée, réactions en chaîne, destruction des murs, élimination des joueurs dans le souffle ou marchant sur des flammes actives.
+- **Mort Subite (Sudden Death)** : chute de blocs indestructibles en spirale vers le centre après expiration du temps réglementaire avec écrasement des joueurs.
+- **Fin de partie & Game Over** : détection automatique de la victoire (dernier survivant) ou du match nul (double K.O.), passage au statut `FINISHED`, arrêt de la boucle de jeu et émission de l'événement `gameOver`.
+- **Couche réseau WebSocket (`SocketManager`)** : gestion des connexions, salon d'attente (Lobby), synchronisation des statuts prêts, diffusion en temps réel (`WELCOME`, `LOBBY_STATE`, `GAME_START`, `GAME_STATE`, `BOMB_EXPLODED`, `PLAYER_ELIMINATED`, `GAME_OVER`, `PONG`).
 
-## Ce qui est déjà couvert par les tests
+---
 
-Les tests existants et ajoutés couvrent :
+## Ce qui est validé par les tests (52 tests passants)
 
-- l'état initial du moteur
-- l'incrémentation du tick
-- l'ajout d'actions dans la file
-- les positions de spawn calculées depuis la configuration partagée
-- les zones de sécurité des coins
-- la génération de la grille
-- les bordures indestructibles
-- le placement d'une bombe
-- le déclenchement d'une explosion
-- la destruction d'un mur destructible
-- l'élimination d'un joueur touché par le souffle
+Les 6 suites de tests couvrent l'intégralité du cycle de vie du serveur :
+
+- **Moteur & Actions joueur** (`GameEngineActions.test.ts` - 25 tests) :
+  - Déplacements 4 directions, respect de la vitesse, collision murs/bombes/bordures.
+  - Déplacement unique par joueur par tick.
+  - Pose de bombes, limite `maxBombs`, interdiction sur case occupée ou par joueur éliminé.
+  - Élimination immédiate lors d'un déplacement sur une explosion active.
+- **Règles & Bombes** (`BombManager.test.ts` - 7 tests) :
+  - Compte à rebours, portée, souffle, destruction des blocs destructibles, réactions en chaîne.
+- **Génération de carte** (`MapGenerator.test.ts` & `GameEngine.test.ts` - 11 tests) :
+  - Spawns, zones sécurisées, murs indestructibles, chute en spirale de la mort subite.
+- **Fin de partie (Game Over)** (`GameEngine.test.ts`) :
+  - Détection du gagnant unique, match nul (0 survivant), statut `FINISHED` et arrêt de la boucle.
+- **Réseau WebSocket** (`SocketManager.test.ts` - 7 tests) :
+  - Connexion client, attribution `playerId`, gestion des arrivées/départs du lobby, démarrage à 2 joueurs prêts, relais des actions et ping/pong.
+- **Intégration de bout en bout** (`FullGameIntegration.test.ts` - 2 tests) :
+  - Simulation d'une partie complète en temps réel : Connexion → Lobby → Prêt → Démarrage → Action/Pose de bombe → Explosion → Élimination → Diffusion WebSocket du `GAME_OVER` avec vainqueur.
+  - Cas de match nul complet via WebSocket.
+
+---
 
 ## Ce qu'il reste à faire concrètement
 
-### 1. Implémenter le traitement des actions du moteur
-Le point principal reste la logique de `processActions()` dans [server/src/engine/GameEngine.ts](../server/src/engine/GameEngine.ts).
+### 1. Mécanisme de Reset / Replay (Prochaine priorité)
+Permettre d'enchaîner plusieurs parties d'affilée sans redémarrer le serveur :
+- Implémenter une méthode `GameEngine.reset()` :
+  - régénération d'une nouvelle carte vierge
+  - remise à 0 du `tickCount` et de l'index de Mort Subite
+  - nettoyage des bombes, explosions et joueurs
+  - remise du statut à `WAITING`
+- Côté `SocketManager` :
+  - réinitialiser `isReady = false` pour tous les joueurs du lobby à la fin d'une partie
+  - diffuser le nouveau `LOBBY_STATE` pour permettre de relancer un match
 
-Il faut :
+### 2. Système de Power-Ups / Bonus
+Ajouter les objets à ramasser pour enrichir le gameplay :
+- Apparition aléatoire de bonus lors de la destruction d'un mur destructible :
+  - `BOMB_UP` : augmente le nombre maximal de bombes (`maxBombs`)
+  - `FIRE_UP` : augmente la portée des explosions (`bombRange`)
+  - `SPEED_UP` : augmente la vitesse de déplacement (`speed`)
+- Détection du ramassage lors des déplacements des joueurs dans `processActions()`.
+- Diffusion des bonus sur la grille dans le `GameState`.
 
-- gérer `MOVE_UP`, `MOVE_DOWN`, `MOVE_LEFT`, `MOVE_RIGHT`
-- vérifier les collisions avec les murs et les cases non traversables
-- mettre à jour la position des joueurs
-- gérer `PLACE_BOMB` avec la limite de bombes
-- protéger les zones de spawn lors des mouvements
+### 3. Gestion des déconnexions en cours de partie
+- Gérer le cas où un joueur quitte ou perd sa connexion WebSocket pendant une partie `IN_PROGRESS` :
+  - passage de son état à `isAlive: false` (forfait)
+  - vérification immédiate des conditions de victoire si un seul joueur reste connecté.
 
-### 2. Relier les actions réseau au moteur
-Le flux actuel est partiellement branché, mais il manque encore :
+---
 
-- transmission fiable des actions validées
-- mise à jour d'un `GameState` complet après chaque tick
-- diffusion du jeu aux clients via `GAME_STATE`
+## Priorité recommandée pour la suite
 
-### 3. Compléter la diffusion côté WebSocket
-Dans [server/src/network/SocketManager.ts](../server/src/network/SocketManager.ts), il manque notamment :
-
-- envoyer `GAME_STATE` à chaque tick quand la partie est active
-- envoyer `BOMB_EXPLODED` quand une bombe explose
-- envoyer `PLAYER_ELIMINATED` et `GAME_OVER` lors des éliminations
-- gérer les cas de fin de partie
-
-### 4. Finir la logique métier de l'état de partie
-Le moteur doit encore bien définir :
-
-- quand la partie passe en `IN_PROGRESS`
-- comment on vérifie la victoire
-- quand l'état `FINISHED` est atteint
-- comment gérer les joueurs morts et le reset de partie
-
-### 5. Ajouter des tests sur le réseau et le flux complet
-Les tests actuels sont déjà une bonne base, mais il manque encore :
-
-- tests de `SocketManager`
-- tests du lobby et du start de partie
-- tests de flux complet : join → ready → start → tick → explosion
-
-## Priorité recommandée
-
-1. Implémenter `processActions()` dans le moteur
-2. Diffuser `GAME_STATE` à chaque tick
-3. Tester les explosions et les mouvements
-4. Gérer les fins de partie et les messages réseau
-5. Ajouter les tests d'intégration de bout en bout
-
-## Conclusion
-
-Le serveur a déjà une base solide, mais le cœur du jeu n'est pas encore complètement relié entre les actions, la logique de plateau et la diffusion réseau. La prochaine étape la plus importante est de terminer la gestion des actions du moteur puis de valider le flux complet avec des tests d'intégration.
+1. **Replay / Reset** : finaliser le cycle de rejouabilité dans le lobby et le moteur.
+2. **Power-ups** : génération sous les murs détruits et application des bonus aux joueurs.
+3. **Résilience réseau** : gestion propre des abandons / déconnexions en plein match.
