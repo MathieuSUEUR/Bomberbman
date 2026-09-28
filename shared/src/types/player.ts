@@ -13,6 +13,7 @@ export interface PlayerState {
   bombRechargeTicks: number;
   nextBombRechargeTick: number | null;
   speed: number;
+  nextMoveTick: number;
   color?: string;
   invulnerableUntilTick: number;
 }

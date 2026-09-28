@@ -30,7 +30,8 @@ export class BombManager {
      * Retourne true si la bombe a ete posee.
      */
     public placerBombe(player: PlayerState, currentTick: number): boolean {
-        if (!player.isAlive || player.bombStock <= 0) return false;
+        if (!player.isAlive || player.bombStock <= 0 ) return false;
+        
 
         const { x, y } = player.position;
         const dejaUneBombe = this.bombs.some(b => b.position.x === x && b.position.y === y);

@@ -44,6 +44,8 @@ export interface GameConfig {
   invulnerabilityDurationTicks: number;
   gameDurationTicks: number;
   suddenDeathDropIntervalTicks: number;
+  moveDelayTicks: number;
+  minMoveDelayTicks: number;
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
@@ -58,6 +60,8 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   invulnerabilityDurationTicks: 100,
   gameDurationTicks: 2400, // 2 minutes (120s * 20 ticks)
   suddenDeathDropIntervalTicks: 10, // Un bloc toutes les 0.5s
+  moveDelayTicks: 4,        // 0,2 s a 20 ticks/s
+  minMoveDelayTicks: 2,
 };
 
 /**
