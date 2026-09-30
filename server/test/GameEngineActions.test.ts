@@ -329,20 +329,28 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
         eliminatedPlayerId = data.playerId;
       });
 
+      setCell(2, 1, CellType.EMPTY);
+      setCell(1, 2, CellType.EMPTY);
+
       engine.ajouterAction({ playerId: 'p1', actionType: 'PLACE_BOMB' });
       engine.tick();
+
+      const p1 = getInternalPlayers().get('p1')!;
+      p1.position = { x: 4, y: 1 };
+      setCell(4, 1, CellType.EMPTY);
 
       const countdown = DEFAULT_GAME_CONFIG.bombCountdownTicks;
       for (let i = 0; i < countdown; i++) {
         engine.tick();
       }
 
-      expect(engine.obtenirEtatActuel().explosions.some(e => e.position.x === 1 && e.position.y === 2)).toBe(true);
+      expect(engine.obtenirEtatActuel().explosions.some(
+        e => e.position.x === 1 && e.position.y === 2
+      )).toBe(true);
 
-      setCell(2, 2, CellType.EMPTY);
-      setCell(1, 2, CellType.EMPTY);
       const p2 = getInternalPlayers().get('p2')!;
       p2.position = { x: 2, y: 2 };
+      setCell(2, 2, CellType.EMPTY);
 
       engine.ajouterAction({ playerId: 'p2', actionType: 'MOVE_LEFT' });
       engine.tick();
