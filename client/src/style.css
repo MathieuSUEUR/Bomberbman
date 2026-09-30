@@ -629,6 +629,36 @@ kbd {
   text-shadow: 0 0 8px rgba(250, 204, 21, 0.4);
 }
 
+#hud-lives-value {
+  color: #f43f5e;
+  text-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
+}
+
+.hud-lives-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-heart-slots {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.hud-heart-icon {
+  font-size: 11px;
+  line-height: 1;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.hud-heart-icon.lost {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
 #hud-bombs-value {
   color: #fb923c;
   text-shadow: 0 0 8px rgba(251, 146, 60, 0.4);

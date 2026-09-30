@@ -5,6 +5,8 @@ export interface HudData {
   score: number;
   availableBombs: number;
   maxBombs: number;
+  lives: number;
+  maxLives: number;
 }
 
 export interface HudOptions {
@@ -12,6 +14,8 @@ export interface HudOptions {
   initialScore?: number;
   initialBombs?: number;
   initialMaxBombs?: number;
+  initialLives?: number;
+  initialMaxLives?: number;
 }
 
 export class HudManager {
@@ -20,11 +24,15 @@ export class HudManager {
   private scoreElement: HTMLElement | null = null;
   private bombCountElement: HTMLElement | null = null;
   private bombSlotsContainer: HTMLElement | null = null;
+  private livesCountElement: HTMLElement | null = null;
+  private livesContainer: HTMLElement | null = null;
 
   private timerSeconds: number;
   private score: number;
   private availableBombs: number;
   private maxBombs: number;
+  private lives: number;
+  private maxLives: number;
 
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private isTimerRunning = false;
@@ -34,6 +42,8 @@ export class HudManager {
     this.score = options.initialScore ?? 0;
     this.availableBombs = options.initialBombs ?? 1;
     this.maxBombs = options.initialMaxBombs ?? 1;
+    this.lives = options.initialLives ?? 3;
+    this.maxLives = options.initialMaxLives ?? 3;
 
     if (typeof document !== 'undefined' && parent) {
       this.container = document.createElement('div');
@@ -66,6 +76,17 @@ export class HudManager {
         </div>
       </div>
 
+      <div class="hud-item hud-lives" id="hud-lives-card">
+        <span class="hud-icon" aria-hidden="true">❤️</span>
+        <div class="hud-info">
+          <span class="hud-label">VIES</span>
+          <div class="hud-lives-wrapper">
+            <span class="hud-value" id="hud-lives-value">${this.lives}</span>
+            <div class="hud-heart-slots" id="hud-heart-slots"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="hud-item hud-bombs" id="hud-bombs-card">
         <span class="hud-icon" aria-hidden="true">💣</span>
         <div class="hud-info">
@@ -80,10 +101,13 @@ export class HudManager {
 
     this.timerElement = this.container.querySelector('#hud-timer-value');
     this.scoreElement = this.container.querySelector('#hud-score-value');
+    this.livesCountElement = this.container.querySelector('#hud-lives-value');
+    this.livesContainer = this.container.querySelector('#hud-heart-slots');
     this.bombCountElement = this.container.querySelector('#hud-bombs-value');
     this.bombSlotsContainer = this.container.querySelector('#hud-bomb-slots');
 
     this.updateBombSlots();
+    this.updateLivesDisplay();
   }
 
   private updateBombSlots(): void {
@@ -97,6 +121,22 @@ export class HudManager {
     }
   }
 
+  private updateLivesDisplay(): void {
+    if (this.livesCountElement) {
+      this.livesCountElement.textContent = String(this.lives);
+    }
+
+    if (!this.livesContainer || typeof document === 'undefined') return;
+    this.livesContainer.innerHTML = '';
+
+    for (let i = 0; i < this.maxLives; i++) {
+      const heart = document.createElement('span');
+      heart.className = `hud-heart-icon ${i < this.lives ? 'active' : 'lost'}`;
+      heart.textContent = i < this.lives ? '❤️' : '🖤';
+      this.livesContainer.appendChild(heart);
+    }
+  }
+
   private setupEventListeners(): void {
     eventBus.on('HUD_UPDATE_SCORE', (payload: unknown) => {
       const data = payload as { score?: number; delta?: number };
@@ -104,6 +144,18 @@ export class HudManager {
         this.setScore(data.score);
       } else if (typeof data?.delta === 'number') {
         this.addScore(data.delta);
+      }
+    });
+
+    eventBus.on('HUD_UPDATE_LIVES', (payload: unknown) => {
+      const data = payload as { lives?: number; maxLives?: number; delta?: number };
+      if (typeof data?.maxLives === 'number') {
+        this.setMaxLives(data.maxLives);
+      }
+      if (typeof data?.lives === 'number') {
+        this.setLives(data.lives);
+      } else if (typeof data?.delta === 'number') {
+        this.setLives(this.lives + data.delta);
       }
     });
 
@@ -154,7 +206,14 @@ export class HudManager {
       if (Array.isArray(s.players)) {
         // En mode mock local, ou format liste
         const p1 = s.players[0] as
-          { currentBombs?: number; maxBombs?: number; score?: number } | undefined;
+          | {
+              currentBombs?: number;
+              maxBombs?: number;
+              score?: number;
+              lives?: number;
+              isAlive?: boolean;
+            }
+          | undefined;
         if (p1) {
           if (typeof p1.score === 'number') this.setScore(p1.score);
           if (typeof p1.maxBombs === 'number') this.setMaxBombs(p1.maxBombs);
@@ -162,12 +221,23 @@ export class HudManager {
             const available = Math.max(0, p1.maxBombs - p1.currentBombs);
             this.setBombs(available);
           }
+          if (typeof p1.lives === 'number') {
+            this.setLives(p1.lives);
+          } else if (typeof p1.isAlive === 'boolean' && !p1.isAlive) {
+            this.setLives(0);
+          }
         }
       } else if (typeof s.players === 'object') {
         // Record<string, PlayerState>
         const playersMap = s.players as Record<
           string,
-          { currentBombs?: number; maxBombs?: number; score?: number }
+          {
+            currentBombs?: number;
+            maxBombs?: number;
+            score?: number;
+            lives?: number;
+            isAlive?: boolean;
+          }
         >;
         const firstPlayer = Object.values(playersMap)[0];
         if (firstPlayer) {
@@ -179,6 +249,11 @@ export class HudManager {
           ) {
             const available = Math.max(0, firstPlayer.maxBombs - firstPlayer.currentBombs);
             this.setBombs(available);
+          }
+          if (typeof firstPlayer.lives === 'number') {
+            this.setLives(firstPlayer.lives);
+          } else if (typeof firstPlayer.isAlive === 'boolean' && !firstPlayer.isAlive) {
+            this.setLives(0);
           }
         }
       }
@@ -223,6 +298,20 @@ export class HudManager {
     this.setScore(this.score + delta);
   }
 
+  public setLives(lives: number): void {
+    this.lives = Math.max(0, Math.min(this.maxLives, lives));
+    this.updateLivesDisplay();
+  }
+
+  public setMaxLives(max: number): void {
+    this.maxLives = Math.max(1, max);
+    this.setLives(Math.min(this.lives, this.maxLives));
+  }
+
+  public loseLife(): void {
+    this.setLives(this.lives - 1);
+  }
+
   public setBombs(available: number): void {
     this.availableBombs = Math.max(0, Math.min(this.maxBombs, available));
     if (this.bombCountElement) {
@@ -242,6 +331,8 @@ export class HudManager {
       score: this.score,
       availableBombs: this.availableBombs,
       maxBombs: this.maxBombs,
+      lives: this.lives,
+      maxLives: this.maxLives,
     };
   }
 
