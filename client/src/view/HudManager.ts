@@ -25,7 +25,6 @@ export class HudManager {
   private bombCountElement: HTMLElement | null = null;
   private bombSlotsContainer: HTMLElement | null = null;
   private livesCountElement: HTMLElement | null = null;
-  private livesContainer: HTMLElement | null = null;
 
   private timerSeconds: number;
   private score: number;
@@ -47,10 +46,15 @@ export class HudManager {
 
     if (typeof document !== 'undefined' && parent) {
       this.container = document.createElement('div');
-      this.container.className = 'game-hud-overlay';
-      this.container.id = 'game-hud-overlay';
+      this.container.className = 'game-hud-bar';
+      this.container.id = 'game-hud-bar';
       this.render();
-      parent.appendChild(this.container);
+      // Si le parent est .canvas-frame, insérer au-dessus du canvas ou dans le parent conteneur
+      if (parent.classList.contains('canvas-frame') && parent.parentElement) {
+        parent.parentElement.insertBefore(this.container, parent);
+      } else {
+        parent.appendChild(this.container);
+      }
     }
 
     this.setupEventListeners();
@@ -80,10 +84,7 @@ export class HudManager {
         <span class="hud-icon" aria-hidden="true">❤️</span>
         <div class="hud-info">
           <span class="hud-label">VIES</span>
-          <div class="hud-lives-wrapper">
-            <span class="hud-value" id="hud-lives-value">${this.lives}</span>
-            <div class="hud-heart-slots" id="hud-heart-slots"></div>
-          </div>
+          <span class="hud-value" id="hud-lives-value">${this.lives}</span>
         </div>
       </div>
 
@@ -102,7 +103,6 @@ export class HudManager {
     this.timerElement = this.container.querySelector('#hud-timer-value');
     this.scoreElement = this.container.querySelector('#hud-score-value');
     this.livesCountElement = this.container.querySelector('#hud-lives-value');
-    this.livesContainer = this.container.querySelector('#hud-heart-slots');
     this.bombCountElement = this.container.querySelector('#hud-bombs-value');
     this.bombSlotsContainer = this.container.querySelector('#hud-bomb-slots');
 
@@ -124,16 +124,6 @@ export class HudManager {
   private updateLivesDisplay(): void {
     if (this.livesCountElement) {
       this.livesCountElement.textContent = String(this.lives);
-    }
-
-    if (!this.livesContainer || typeof document === 'undefined') return;
-    this.livesContainer.innerHTML = '';
-
-    for (let i = 0; i < this.maxLives; i++) {
-      const heart = document.createElement('span');
-      heart.className = `hud-heart-icon ${i < this.lives ? 'active' : 'lost'}`;
-      heart.textContent = i < this.lives ? '❤️' : '🖤';
-      this.livesContainer.appendChild(heart);
     }
   }
 

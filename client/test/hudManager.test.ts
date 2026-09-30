@@ -49,7 +49,6 @@ function createMockElement(tag: string): MockDomElement {
       if (selector === '#hud-timer-value') return { textContent: '00:00' };
       if (selector === '#hud-score-value') return { textContent: '0' };
       if (selector === '#hud-lives-value') return { textContent: '3' };
-      if (selector === '#hud-heart-slots') return createMockElement('div');
       if (selector === '#hud-bombs-value') return { textContent: '1/1' };
       if (selector === '#hud-bomb-slots') return createMockElement('div');
       return null;

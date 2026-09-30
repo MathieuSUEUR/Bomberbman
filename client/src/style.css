@@ -551,34 +551,30 @@ kbd {
 }
 
 /* ================================================= */
-/* 4. Superposition HUD (Heads-Up Display) */
+/* 4. Barre HUD (Heads-Up Display) au-dessus du jeu */
 /* ================================================= */
 
-.game-hud-overlay {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  right: 14px;
+.game-hud-bar {
+  width: 500px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  pointer-events: none; /* Laisse passer les clics et événements */
+  gap: 8px;
   z-index: 10;
 }
 
 .hud-item {
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(13, 17, 23, 0.82);
+  background: var(--bg-card);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 6px 12px;
+  border: 1px solid var(--border-card);
+  padding: 8px 12px;
   border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
-  pointer-events: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   user-select: none;
   transition:
     transform 0.2s ease,
@@ -591,7 +587,7 @@ kbd {
 }
 
 .hud-icon {
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
 }
 
@@ -632,31 +628,6 @@ kbd {
 #hud-lives-value {
   color: #f43f5e;
   text-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
-}
-
-.hud-lives-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.hud-heart-slots {
-  display: flex;
-  gap: 2px;
-  align-items: center;
-}
-
-.hud-heart-icon {
-  font-size: 11px;
-  line-height: 1;
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease;
-}
-
-.hud-heart-icon.lost {
-  opacity: 0.35;
-  filter: grayscale(1);
 }
 
 #hud-bombs-value {
