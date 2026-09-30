@@ -549,3 +549,117 @@ kbd {
   background-color: #000;
   border-radius: 6px;
 }
+
+/* ================================================= */
+/* 4. Superposition HUD (Heads-Up Display) */
+/* ================================================= */
+
+.game-hud-overlay {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none; /* Laisse passer les clics et événements */
+  z-index: 10;
+}
+
+.hud-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(13, 17, 23, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 12px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  user-select: none;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.hud-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 153, 0, 0.4);
+}
+
+.hud-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.hud-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+}
+
+.hud-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.hud-value {
+  font-family: var(--font-retro);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+#hud-timer-value {
+  color: #38bdf8;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+}
+
+#hud-score-value {
+  color: #facc15;
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.4);
+}
+
+#hud-bombs-value {
+  color: #fb923c;
+  text-shadow: 0 0 8px rgba(251, 146, 60, 0.4);
+}
+
+.hud-bombs-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-bomb-slots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.hud-bomb-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+.hud-bomb-dot.active {
+  background: #ff7b00;
+  box-shadow: 0 0 6px #ff7b00;
+}
+
+.hud-bomb-dot.used {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
