@@ -1,117 +1,139 @@
-import { BombState, ExplosionCell, PlayerState, CellType, BombExplodedPayload } from '@bomberman/shared';
+import {
+    BombState,
+    ExplosionCell,
+    PlayerState,
+    CellType,
+    BombExplodedPayload,
+    PowerUp,
+    PowerUpType,
+    DEFAULT_GAME_CONFIG
+} from '@bomberman/shared';
 import { Map as GameMap } from '../map/Map.js';
 
-/**
- * Gère le dépôt, le compte à rebours, la détonation des bombes,
- * la destruction des éléments du décor et l'élimination des joueurs touchés.
- */
 export class BombManager {
-    /** Liste des bombes actuellement posées sur le plateau. */
     private bombs: BombState[];
-
-    /** Liste des cellules actuellement enflammées par les explosions. */
     private explosions: ExplosionCell[];
-
-    /** Nombre de ticks serveur avant l'explosion d'une bombe après son dépôt. */
-    private bombCountdownTicks: number;
-
-    /** Durée de persistance des flammes d'explosion en nombre de ticks. */
     private explosionDurationTicks: number;
+    private powerUpCounter: number;
 
-    constructor(bombCountdownTicks: number, explosionDurationTicks: number) {
+    constructor(explosionDurationTicks: number) {
         this.bombs = [];
         this.explosions = [];
-        this.bombCountdownTicks = bombCountdownTicks;
         this.explosionDurationTicks = explosionDurationTicks;
+        this.powerUpCounter = 0;
     }
 
     /**
-     * Dépose une bombe sur une case spécifique si aucune autre bombe n'y est déjà présente.
-     *
-     * @param playerId - Identifiant du joueur déposant la bombe.
-     * @param x - Coordonnée X de la case ciblée.
-     * @param y - Coordonnée Y de la case ciblée.
-     * @param range - Portée de déflagration de la bombe en nombre de cases.
-     * @param currentTick - Numéro du tick serveur actuel.
+     * Depose une bombe a la position du joueur si son stock le permet et si la case est libre.
+     * Consomme une bombe du stock et demarre le chrono de recharge s'il ne tourne pas deja.
+     * La meche est fixe (DEFAULT_GAME_CONFIG.bombCountdownTicks).
+     * Retourne true si la bombe a ete posee.
      */
-    public placerBombe(playerId: string, x: number, y: number, range: number, currentTick: number): void {
-        const dejaUneBombe = this.bombs.some(
-            b => b.position.x === x && b.position.y === y
-        );
-        if (dejaUneBombe) return;
-
-        // Initialisation de la nouvelle bombe avec son échéance d'explosion
-        const bomb: BombState = {
-            id: `${playerId}-${currentTick}`,
-            ownerId: playerId,
-            position: { x, y },
-            range,
-            placedAtTick: currentTick,
-            explodeAtTick: currentTick + this.bombCountdownTicks,
-        };
+    public placerBombe(player: PlayerState, currentTick: number): boolean {
+        if (!player.isAlive || player.bombStock <= 0 ) return false;
         
-        this.bombs.push(bomb);
+
+        const { x, y } = player.position;
+        const dejaUneBombe = this.bombs.some(b => b.position.x === x && b.position.y === y);
+        if (dejaUneBombe) return false;
+
+        player.bombStock--;
+        if (player.nextBombRechargeTick === null) {
+            player.nextBombRechargeTick = currentTick + player.bombRechargeTicks;
+        }
+
+        this.bombs.push({
+            id: `${player.id}-${currentTick}`,
+            ownerId: player.id,
+            position: { x, y },
+            range: player.bombRange,
+            placedAtTick: currentTick,
+            explodeAtTick: currentTick + DEFAULT_GAME_CONFIG.bombCountdownTicks,
+        });
+        return true;
     }
 
     /**
-     * Met à jour l'état des bombes et des explosions pour le tick serveur courant :
-     * 1. Nettoie les cellules d'explosion expirées.
-     * 2. Déclenche les bombes arrivées à expiration.
-     *
-     * @remarks En cours d'intégration dans la boucle principale du moteur de jeu.
-     * @param currentTick - Numéro du tick serveur actuel.
-     * @param map - Instance de la carte de jeu pour propager les dégâts.
-     * @param players - Table des joueurs pour appliquer les éliminations.
+     * Rend une bombe aux joueurs dont le chrono de recharge est arrive a echeance.
+     * Le chrono redemarre tant que le stock n'est pas plein.
      */
-    public tick(currentTick: number, map: GameMap, players: Map<string, PlayerState>): { explodedBombs: BombExplodedPayload[], eliminatedPlayers: string[] } {
+    private rechargerBombes(currentTick: number, players: Map<string, PlayerState>): void {
+        for (const player of players.values()) {
+            if (!player.isAlive) continue;
+
+            if (player.bombStock >= player.maxBombs) {
+                player.nextBombRechargeTick = null;
+                continue;
+            }
+
+            if (player.nextBombRechargeTick === null) {
+                player.nextBombRechargeTick = currentTick + player.bombRechargeTicks;
+                continue;
+            }
+
+            if (currentTick >= player.nextBombRechargeTick) {
+                player.bombStock++;
+                player.nextBombRechargeTick = player.bombStock < player.maxBombs
+                    ? currentTick + player.bombRechargeTicks
+                    : null;
+            }
+        }
+    }
+
+    /**
+     * Nettoie les flammes expirees, recharge les bombes des joueurs, puis fait exploser
+     * les bombes arrivees a echeance. Une explosion qui touche une autre bombe la fait
+     * exploser dans le meme tick (reaction en chaine).
+     * La liste powerUps est modifiee en place quand un mur detruit fait apparaitre un bonus.
+     */
+    public tick(
+        currentTick: number,
+        map: GameMap,
+        players: Map<string, PlayerState>,
+        powerUps: PowerUp[]
+    ): { explodedBombs: BombExplodedPayload[], eliminatedPlayers: string[] } {
         this.explosions = this.explosions.filter(e => e.expiresAtTick > currentTick);
 
-        const bombsToExplode = this.bombs.filter(b => currentTick >= b.explodeAtTick);
+        this.rechargerBombes(currentTick, players);
+
+        const bombsAExploser = this.bombs.filter(b => currentTick >= b.explodeAtTick);
         this.bombs = this.bombs.filter(b => currentTick < b.explodeAtTick);
 
         const explodedBombs: BombExplodedPayload[] = [];
-        const eliminatedPlayers: Set<string> = new Set();
+        const eliminatedPlayers = new Set<string>();
 
-        while (bombsToExplode.length > 0) {
-            const bomb = bombsToExplode.shift()!;
-            
-            // Récupération de la bombe pour le joueur
-            const owner = players.get(bomb.ownerId);
-            if (owner && owner.currentBombs > 0) {
-                owner.currentBombs--;
-            }
-
-            const res = this.exploser(bomb, currentTick, map, players);
+        // Un for...of sur un tableau parcourt aussi les elements ajoutes pendant la boucle :
+        // les bombes declenchees en chaine sont donc traitees dans le meme tick.
+        for (const bomb of bombsAExploser) {
+            const res = this.exploser(bomb, currentTick, map, players, powerUps);
             explodedBombs.push(res.bombPayload);
-            res.eliminatedPlayers.forEach(p => eliminatedPlayers.add(p));
+            res.eliminatedPlayers.forEach(id => eliminatedPlayers.add(id));
 
-            // Réactions en chaîne : on vérifie si l'explosion touche d'autres bombes
             for (const cell of res.bombPayload.affectedCells) {
-                const hitBombIndex = this.bombs.findIndex(b => b.position.x === cell.x && b.position.y === cell.y);
-                if (hitBombIndex !== -1) {
-                    const hitBomb = this.bombs.splice(hitBombIndex, 1)[0];
-                    bombsToExplode.push(hitBomb);
+                const index = this.bombs.findIndex(b => b.position.x === cell.x && b.position.y === cell.y);
+                if (index !== -1) {
+                    bombsAExploser.push(this.bombs.splice(index, 1)[0]);
                 }
             }
         }
 
-        return { explodedBombs, eliminatedPlayers: Array.from(eliminatedPlayers) };
+        return { explodedBombs, eliminatedPlayers: [...eliminatedPlayers] };
     }
 
     /**
-     * Déclenche l'explosion d'une bombe dans les 4 directions cardinales,
-     * détruit les murs destructibles rencontrés et élimine les joueurs dans le souffle.
-     *
-     * @param bomb - État de la bombe qui explose.
-     * @param currentTick - Numéro du tick serveur actuel.
-     * @param map - Carte du jeu pour vérifier les obstacles et modifier les cases.
-     * @param players - Table des joueurs présents sur la carte.
+     * Fait exploser une bombe dans les 4 directions, detruit le premier mur destructible
+     * de chaque direction, retire une vie aux joueurs touches et elimine ceux a 0 vie.
      */
-    private exploser(bomb: BombState, currentTick: number, map: GameMap, players: Map<string, PlayerState>): { bombPayload: BombExplodedPayload, eliminatedPlayers: string[] } {
+    private exploser(
+        bomb: BombState,
+        currentTick: number,
+        map: GameMap,
+        players: Map<string, PlayerState>,
+        powerUps: PowerUp[]
+    ): { bombPayload: BombExplodedPayload, eliminatedPlayers: string[] } {
         const cellsExplosion = [bomb.position];
         const eliminatedPlayers: string[] = [];
 
-        // Vecteurs directionnels : droite, gauche, bas, haut
         const directions = [
             { x: 1, y: 0 },
             { x: -1, y: 0 },
@@ -119,44 +141,42 @@ export class BombManager {
             { x: 0, y: -1 },
         ];
 
-        // Propagation du souffle dans chaque direction
         for (const dir of directions) {
             for (let dist = 1; dist <= bomb.range; dist++) {
                 const nx = bomb.position.x + dir.x * dist;
                 const ny = bomb.position.y + dir.y * dist;
                 const cell = map.get(nx, ny);
 
-                // Arrêt immédiat si sortie de carte ou mur indestructible
                 if (cell === undefined || cell === CellType.INDESTRUCTIBLE_WALL) {
                     break;
                 }
 
                 cellsExplosion.push({ x: nx, y: ny });
 
-                // Arrêt si on rencontre une autre bombe (elle va exploser en chaîne)
-                const hasBomb = this.bombs.some(b => b.position.x === nx && b.position.y === ny);
-                if (hasBomb) {
-                    break;
-                }
-
-                // Destruction du premier mur destructible rencontré, puis arrêt du souffle
                 if (cell === CellType.DESTRUCTIBLE_WALL) {
                     map.setCell(nx, ny, CellType.EMPTY);
+                    this.tenterSpawnPowerUp(nx, ny, powerUps);
                     break;
                 }
             }
         }
 
-        // Création des flammes et élimination des joueurs touchés
         const expiresAtTick = currentTick + this.explosionDurationTicks;
         for (const pos of cellsExplosion) {
             this.explosions.push({ position: pos, expiresAtTick });
 
-            // Élimination de tout joueur se trouvant sur une case de déflagration
             for (const [id, player] of players) {
                 if (player.isAlive && player.position.x === pos.x && player.position.y === pos.y) {
-                    player.isAlive = false;
-                    eliminatedPlayers.push(id);
+                    // Un joueur invulnerable ignore le souffle
+                    if (currentTick < player.invulnerableUntilTick) continue;
+
+                    player.lives--;
+                    if (player.lives <= 0) {
+                        player.isAlive = false;
+                        eliminatedPlayers.push(id);
+                    } else {
+                        player.invulnerableUntilTick = currentTick + DEFAULT_GAME_CONFIG.invulnerabilityDurationTicks;
+                    }
                 }
             }
         }
@@ -173,19 +193,24 @@ export class BombManager {
     }
 
     /**
-     * Retourne la liste de toutes les bombes actives actuellement posées sur le plateau.
-     *
-     * @returns Tableau des bombes actives.
+     * Fait apparaitre un power-up de type aleatoire avec la probabilite
+     * powerUpDropPercentage (en pourcentage, donc comparee a un tirage sur 100).
      */
+    private tenterSpawnPowerUp(x: number, y: number, powerUps: PowerUp[]): void {
+        if (Math.random() * 100 >= DEFAULT_GAME_CONFIG.powerUpDropPercentage) return;
+
+        const types = Object.values(PowerUpType);
+        powerUps.push({
+            id: `pu-${this.powerUpCounter++}`,
+            position: { x, y },
+            type: types[Math.floor(Math.random() * types.length)],
+        });
+    }
+
     public getBombs(): BombState[] {
         return this.bombs;
     }
 
-    /**
-     * Retourne la liste de toutes les cellules actuellement affectées par une explosion.
-     *
-     * @returns Tableau des cellules d'explosion actives.
-     */
     public getExplosions(): ExplosionCell[] {
         return this.explosions;
     }
