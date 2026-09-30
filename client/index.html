@@ -130,6 +130,47 @@
           <canvas id="game-canvas"></canvas>
         </div>
       </div>
+
+      <!-- 4. Modale Game Over (overlay) -->
+      <div
+        id="game-over-overlay"
+        class="game-over-overlay"
+        style="display: none"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="game-over-title"
+        aria-describedby="game-over-desc"
+      >
+        <div class="game-over-backdrop" aria-hidden="true"></div>
+        <div class="game-over-modal">
+          <!-- Icône animée (victoire ou défaite) -->
+          <div class="game-over-icon" id="game-over-icon" aria-hidden="true">🏆</div>
+
+          <!-- Titre de l'état (victoire / défaite / nul) -->
+          <h2 class="game-over-title" id="game-over-title">Partie Terminée</h2>
+
+          <!-- Description / Gagnant -->
+          <p class="game-over-desc" id="game-over-desc">Chargement des résultats...</p>
+
+          <!-- Badge gagnant -->
+          <div class="game-over-winner-badge" id="game-over-winner-badge">
+            <span class="winner-trophy" aria-hidden="true">👑</span>
+            <span class="winner-name" id="game-over-winner-name">—</span>
+          </div>
+
+          <!-- Actions post-partie -->
+          <div class="game-over-actions">
+            <button id="btn-play-again" class="btn btn-primary btn-large">
+              <span class="btn-icon" aria-hidden="true">🔄</span>
+              <span class="btn-text">Rejouer</span>
+            </button>
+            <button id="btn-back-to-menu" class="btn btn-outline">
+              <span class="btn-icon" aria-hidden="true">🏠</span>
+              <span class="btn-text">Menu principal</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>
