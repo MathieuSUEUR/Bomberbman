@@ -48,6 +48,8 @@ function createMockElement(tag: string): MockDomElement {
     querySelector: (selector: string) => {
       if (selector === '#hud-timer-value') return { textContent: '00:00' };
       if (selector === '#hud-score-value') return { textContent: '0' };
+      if (selector === '#hud-lives-value') return { textContent: '3' };
+      if (selector === '#hud-heart-slots') return createMockElement('div');
       if (selector === '#hud-bombs-value') return { textContent: '1/1' };
       if (selector === '#hud-bomb-slots') return createMockElement('div');
       return null;
@@ -72,6 +74,8 @@ describe('HudManager - Tests de la logique et du state', () => {
       initialScore: 0,
       initialBombs: 1,
       initialMaxBombs: 1,
+      initialLives: 3,
+      initialMaxLives: 3,
     });
   });
 
@@ -87,6 +91,8 @@ describe('HudManager - Tests de la logique et du state', () => {
     expect(data.score).toBe(0);
     expect(data.availableBombs).toBe(1);
     expect(data.maxBombs).toBe(1);
+    expect(data.lives).toBe(3);
+    expect(data.maxLives).toBe(3);
   });
 
   it('devrait formater correctement le temps (mm:ss)', () => {
@@ -124,6 +130,29 @@ describe('HudManager - Tests de la logique et du state', () => {
     expect(hud.getHudData().score).toBe(450);
   });
 
+  it('devrait gérer le compteur de vies avec setLives, setMaxLives et loseLife', () => {
+    hud.loseLife();
+    expect(hud.getHudData().lives).toBe(2);
+
+    hud.loseLife();
+    expect(hud.getHudData().lives).toBe(1);
+
+    hud.setLives(3);
+    expect(hud.getHudData().lives).toBe(3);
+
+    // Ne peut pas dépasser maxLives
+    hud.setLives(10);
+    expect(hud.getHudData().lives).toBe(3);
+
+    // Ne peut pas être négatif
+    hud.setLives(-2);
+    expect(hud.getHudData().lives).toBe(0);
+
+    eventBus.emit('HUD_UPDATE_LIVES', { lives: 2, maxLives: 4 });
+    expect(hud.getHudData().maxLives).toBe(4);
+    expect(hud.getHudData().lives).toBe(2);
+  });
+
   it('devrait mettre à jour le compteur de bombes avec setBombs et setMaxBombs', () => {
     hud.setMaxBombs(3);
     expect(hud.getHudData().maxBombs).toBe(3);
@@ -155,6 +184,7 @@ describe('HudManager - Tests de la logique et du state', () => {
           currentBombs: 1,
           maxBombs: 3,
           score: 250,
+          lives: 2,
         },
       },
     };
@@ -164,6 +194,7 @@ describe('HudManager - Tests de la logique et du state', () => {
     expect(hud.getHudData().maxBombs).toBe(3);
     expect(hud.getHudData().availableBombs).toBe(2); // 3 - 1 = 2
     expect(hud.getHudData().score).toBe(250);
+    expect(hud.getHudData().lives).toBe(2);
   });
 
   it('devrait gérer la synchronisation du GAME_STATE_UPDATE avec un tableau de joueurs (mock)', () => {
@@ -175,6 +206,7 @@ describe('HudManager - Tests de la logique et du state', () => {
           score: 100,
           currentBombs: 0,
           maxBombs: 2,
+          isAlive: false,
         },
       ],
     };
@@ -183,5 +215,6 @@ describe('HudManager - Tests de la logique et du state', () => {
     expect(hud.getHudData().score).toBe(100);
     expect(hud.getHudData().maxBombs).toBe(2);
     expect(hud.getHudData().availableBombs).toBe(2);
+    expect(hud.getHudData().lives).toBe(0);
   });
 });

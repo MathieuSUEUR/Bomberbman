@@ -19,6 +19,8 @@ export const hudManager = new HudManager(
     initialScore: 0,
     initialBombs: 1,
     initialMaxBombs: 1,
+    initialLives: 3,
+    initialMaxLives: 3,
   },
 );
 
@@ -98,6 +100,7 @@ function startMockGame(): void {
   eventBus.emit('HUD_TIMER_START');
   eventBus.emit('HUD_UPDATE_BOMBS', { available: 1, max: 1 });
   eventBus.emit('HUD_UPDATE_SCORE', { score: 0 });
+  eventBus.emit('HUD_UPDATE_LIVES', { lives: 3, maxLives: 3 });
 
   // Émettre le premier état de jeu
   eventBus.emit('GAME_STATE_UPDATE', mockGameState);
