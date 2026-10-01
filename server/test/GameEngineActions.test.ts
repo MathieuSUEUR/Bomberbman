@@ -364,7 +364,9 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
       }
 
       // La case (1, 2) est en flammes (explosion active)
-      expect(engine.obtenirEtatActuel().explosions.some(e => e.position.x === 1 && e.position.y === 2)).toBe(true);
+      expect(
+        engine.obtenirEtatActuel().explosions.some((e) => e.position.x === 1 && e.position.y === 2),
+      ).toBe(true);
 
       // p2 spawn en (gridWidth - 2, 1), on le place en (2, 2) avec cases vides
       setCell(2, 2, CellType.EMPTY);

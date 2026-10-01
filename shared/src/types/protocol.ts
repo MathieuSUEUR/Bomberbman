@@ -2,11 +2,7 @@ import { GameState, ActionType } from './game.js';
 import { Position } from './grid.js';
 
 //type de message client
-export type ClientMessageType =
-  | 'JOIN'
-  | 'READY'
-  | 'ACTION'
-  | 'PING';
+export type ClientMessageType = 'JOIN' | 'READY' | 'ACTION' | 'PING';
 
 //payload pour JOIN
 export interface JoinPayload {

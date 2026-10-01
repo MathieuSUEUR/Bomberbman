@@ -22,8 +22,6 @@ Cette PR met en place les fichiers de gouvernance initiaux pour le dépôt. Elle
 
 ## Comment tester
 
-
-
 1. Lire les modifications dans l'onglet "Files changed" pour s'assurer que les deux fichiers sont présents dans le dossier /.github/.
 2. Vérifier que les chemins /server/ et /.github/ sont correctement assignés à @MathieuSUEUR et @AlexisPonceyValdemar dans le fichier CODEOWNERS.
 3. Après la fusion de cette PR dans develop, simuler l'ouverture d'une nouvelle PR pour vérifier que ce template s'affiche automatiquement par défaut.

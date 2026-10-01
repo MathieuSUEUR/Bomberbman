@@ -2,17 +2,16 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { WebSocket } from 'ws';
 import { GameEngine } from '../src/engine/GameEngine.js';
 import { SocketManager } from '../src/network/SocketManager.js';
-import {
-  ServerMessage,
-  ClientMessage,
-  CellType
-} from '@bomberman/shared';
+import { ServerMessage, ClientMessage, CellType } from '@bomberman/shared';
 
 class TestClient {
   public ws: WebSocket;
   public playerId: string = '';
   private messages: ServerMessage[] = [];
-  private waiters: Array<{ predicate: (msg: ServerMessage) => boolean; resolve: (msg: ServerMessage) => void }> = [];
+  private waiters: Array<{
+    predicate: (msg: ServerMessage) => boolean;
+    resolve: (msg: ServerMessage) => void;
+  }> = [];
 
   constructor(port: number) {
     this.ws = new WebSocket(`ws://localhost:${port}`);
@@ -58,7 +57,7 @@ class TestClient {
   }
 }
 
-describe('Tests d\'intégration de bout en bout - Flux complet d\'une partie', () => {
+describe("Tests d'intégration de bout en bout - Flux complet d'une partie", () => {
   let engine: GameEngine;
   let socketManager: SocketManager;
   let port: number;
@@ -88,7 +87,7 @@ describe('Tests d\'intégration de bout en bout - Flux complet d\'une partie', (
     engine.stopGameLoop();
   });
 
-  it('devrait exécuter le flux complet d\'une partie : Connexion -> Lobby -> Start -> Actions -> Bombe -> Explosion -> Élimination -> Game Over (Victoire)', async () => {
+  it("devrait exécuter le flux complet d'une partie : Connexion -> Lobby -> Start -> Actions -> Bombe -> Explosion -> Élimination -> Game Over (Victoire)", async () => {
     // 1. Deux joueurs se connectent
     const alice = await createClient();
     const bob = await createClient();
@@ -106,7 +105,9 @@ describe('Tests d\'intégration de bout en bout - Flux complet d\'une partie', (
 
     // 3. Bob rejoint le salon
     bob.send({ type: 'JOIN', payload: { name: 'Bob' } });
-    const lobbyBob = await alice.waitForMessage((m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2);
+    const lobbyBob = await alice.waitForMessage(
+      (m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2,
+    );
     if (lobbyBob.type === 'LOBBY_STATE') {
       expect(lobbyBob.payload.canStart).toBe(false);
     }
@@ -118,7 +119,7 @@ describe('Tests d\'intégration de bout en bout - Flux complet d\'une partie', (
     // 5. Réception de GAME_START par les deux clients
     const [startAlice, startBob] = await Promise.all([
       alice.waitForMessage((m) => m.type === 'GAME_START'),
-      bob.waitForMessage((m) => m.type === 'GAME_START')
+      bob.waitForMessage((m) => m.type === 'GAME_START'),
     ]);
 
     expect(startAlice.type).toBe('GAME_START');
@@ -139,7 +140,7 @@ describe('Tests d\'intégration de bout en bout - Flux complet d\'une partie', (
 
     // Attendre que la bombe apparaisse dans un GAME_STATE
     const stateWithBomb = await alice.waitForMessage(
-      (m) => m.type === 'GAME_STATE' && m.payload.bombs.length > 0
+      (m) => m.type === 'GAME_STATE' && m.payload.bombs.length > 0,
     );
     expect(stateWithBomb.type).toBe('GAME_STATE');
     if (stateWithBomb.type === 'GAME_STATE') {
@@ -163,7 +164,7 @@ describe('Tests d\'intégration de bout en bout - Flux complet d\'une partie', (
     // 9. Attendre l'explosion de la bombe et l'élimination de Bob
     const [bombExplosion, playerEliminated] = await Promise.all([
       alice.waitForMessage((m) => m.type === 'BOMB_EXPLODED'),
-      bob.waitForMessage((m) => m.type === 'PLAYER_ELIMINATED')
+      bob.waitForMessage((m) => m.type === 'PLAYER_ELIMINATED'),
     ]);
 
     expect(bombExplosion.type).toBe('BOMB_EXPLODED');
@@ -175,7 +176,7 @@ describe('Tests d\'intégration de bout en bout - Flux complet d\'une partie', (
     // 10. Victoire : les deux clients reçoivent GAME_OVER avec Alice comme gagnante
     const [gameOverAlice, gameOverBob] = await Promise.all([
       alice.waitForMessage((m) => m.type === 'GAME_OVER'),
-      bob.waitForMessage((m) => m.type === 'GAME_OVER')
+      bob.waitForMessage((m) => m.type === 'GAME_OVER'),
     ]);
 
     expect(gameOverAlice.type).toBe('GAME_OVER');

@@ -1,20 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import {
-  CellType,
-  DEFAULT_GAME_CONFIG,
-  PlayerState,
-} from '@bomberman/shared';
+import { CellType, DEFAULT_GAME_CONFIG, PlayerState } from '@bomberman/shared';
 import { Map as GameMap } from '../src/map/Map.js';
 import { BombManager } from '../src/rules/BombManager.js';
 
 function createEmptyGrid(): GameMap {
   const grid = Array.from({ length: DEFAULT_GAME_CONFIG.gridHeight }, () =>
-    Array.from({ length: DEFAULT_GAME_CONFIG.gridWidth }, () => CellType.EMPTY)
+    Array.from({ length: DEFAULT_GAME_CONFIG.gridWidth }, () => CellType.EMPTY),
   );
 
   for (let y = 0; y < DEFAULT_GAME_CONFIG.gridHeight; y++) {
     for (let x = 0; x < DEFAULT_GAME_CONFIG.gridWidth; x++) {
-      if (x === 0 || x === DEFAULT_GAME_CONFIG.gridWidth - 1 || y === 0 || y === DEFAULT_GAME_CONFIG.gridHeight - 1) {
+      if (
+        x === 0 ||
+        x === DEFAULT_GAME_CONFIG.gridWidth - 1 ||
+        y === 0 ||
+        y === DEFAULT_GAME_CONFIG.gridHeight - 1
+      ) {
         grid[y][x] = CellType.INDESTRUCTIBLE_WALL;
       }
     }
@@ -27,7 +28,7 @@ describe('BombManager', () => {
   it('ne place qu une bombe par case', () => {
     const bombManager = new BombManager(
       DEFAULT_GAME_CONFIG.bombCountdownTicks,
-      DEFAULT_GAME_CONFIG.explosionDurationTicks
+      DEFAULT_GAME_CONFIG.explosionDurationTicks,
     );
 
     bombManager.placerBombe('p1', 3, 3, 2, 10);
@@ -40,7 +41,7 @@ describe('BombManager', () => {
   it('déclenche une explosion et détruit un mur destructible', () => {
     const bombManager = new BombManager(
       DEFAULT_GAME_CONFIG.bombCountdownTicks,
-      DEFAULT_GAME_CONFIG.explosionDurationTicks
+      DEFAULT_GAME_CONFIG.explosionDurationTicks,
     );
     const map = createEmptyGrid();
 
@@ -56,7 +57,7 @@ describe('BombManager', () => {
   it('élimine un joueur présent dans la zone d explosion', () => {
     const bombManager = new BombManager(
       DEFAULT_GAME_CONFIG.bombCountdownTicks,
-      DEFAULT_GAME_CONFIG.explosionDurationTicks
+      DEFAULT_GAME_CONFIG.explosionDurationTicks,
     );
     const map = createEmptyGrid();
     const players = new Map<string, PlayerState>([
@@ -84,7 +85,7 @@ describe('BombManager', () => {
   it('fait exploser en chaîne une autre bombe touchée par le souffle', () => {
     const bombManager = new BombManager(
       DEFAULT_GAME_CONFIG.bombCountdownTicks,
-      DEFAULT_GAME_CONFIG.explosionDurationTicks
+      DEFAULT_GAME_CONFIG.explosionDurationTicks,
     );
     const map = createEmptyGrid();
     const players = new Map<string, PlayerState>();
@@ -99,16 +100,16 @@ describe('BombManager', () => {
 
     // Les deux bombes doivent avoir explosé
     expect(bombManager.getBombs()).toHaveLength(0);
-    
+
     // On vérifie qu'on a bien les flammes de la bombe 2
     const explosions = bombManager.getExplosions();
-    expect(explosions.some(e => e.position.x === 6 && e.position.y === 4)).toBe(true);
+    expect(explosions.some((e) => e.position.x === 6 && e.position.y === 4)).toBe(true);
   });
 
   it('récupère la bombe d un joueur après explosion (décrémente currentBombs)', () => {
     const bombManager = new BombManager(
       DEFAULT_GAME_CONFIG.bombCountdownTicks,
-      DEFAULT_GAME_CONFIG.explosionDurationTicks
+      DEFAULT_GAME_CONFIG.explosionDurationTicks,
     );
     const map = createEmptyGrid();
     const player: PlayerState = {

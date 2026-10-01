@@ -8,8 +8,8 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      'no-console': ['warn', { allow: ['warn', 'error', 'info'] }]
-    }
+      'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+    },
   },
   {
     ignores: [
@@ -17,7 +17,7 @@ export default tseslint.config(
       '**/dist-electron/**',
       '**/node_modules/**',
       '**/coverage/**',
-      '**/build/**'
-    ]
-  }
+      '**/build/**',
+    ],
+  },
 );

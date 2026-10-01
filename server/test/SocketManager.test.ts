@@ -7,7 +7,10 @@ import { ServerMessage, ClientMessage } from '@bomberman/shared';
 class TestClient {
   public ws: WebSocket;
   private messages: ServerMessage[] = [];
-  private waiters: Array<{ predicate: (msg: ServerMessage) => boolean; resolve: (msg: ServerMessage) => void }> = [];
+  private waiters: Array<{
+    predicate: (msg: ServerMessage) => boolean;
+    resolve: (msg: ServerMessage) => void;
+  }> = [];
 
   constructor(port: number) {
     this.ws = new WebSocket(`ws://localhost:${port}`);
@@ -54,7 +57,7 @@ class TestClient {
   }
 }
 
-describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
+describe("SocketManager - Tests d'intégration réseau WebSocket", () => {
   let engine: GameEngine;
   let socketManager: SocketManager;
   let port: number;
@@ -99,7 +102,7 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
 
     client.send({
       type: 'JOIN',
-      payload: { name: 'Player 1' }
+      payload: { name: 'Player 1' },
     });
 
     const lobbyMsg = await client.waitForMessage((m) => m.type === 'LOBBY_STATE');
@@ -118,7 +121,7 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
 
     client1.send({
       type: 'JOIN',
-      payload: { name: 'Player 1' }
+      payload: { name: 'Player 1' },
     });
     await client1.waitForMessage((m) => m.type === 'LOBBY_STATE');
 
@@ -128,11 +131,13 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
 
     client2.send({
       type: 'JOIN',
-      payload: { name: 'Player 2' }
+      payload: { name: 'Player 2' },
     });
 
     // Les deux reçoivent le lobby mis à jour avec 2 joueurs
-    const lobby2 = await client1.waitForMessage((m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2);
+    const lobby2 = await client1.waitForMessage(
+      (m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2,
+    );
     if (lobby2.type === 'LOBBY_STATE') {
       expect(lobby2.payload.players).toHaveLength(2);
       expect(lobby2.payload.canStart).toBe(false);
@@ -141,19 +146,19 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
     // Le client 1 se met prêt
     client1.send({
       type: 'READY',
-      payload: { isReady: true }
+      payload: { isReady: true },
     });
 
     // Le client 2 se met prêt
     client2.send({
       type: 'READY',
-      payload: { isReady: true }
+      payload: { isReady: true },
     });
 
     // Les deux clients doivent recevoir GAME_START
     const [gameStart1, gameStart2] = await Promise.all([
       client1.waitForMessage((m) => m.type === 'GAME_START'),
-      client2.waitForMessage((m) => m.type === 'GAME_START')
+      client2.waitForMessage((m) => m.type === 'GAME_START'),
     ]);
 
     expect(gameStart1.type).toBe('GAME_START');
@@ -175,7 +180,7 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
 
     client.send({
       type: 'ACTION',
-      payload: { actionType: 'MOVE_UP' }
+      payload: { actionType: 'MOVE_UP' },
     });
 
     expect(() => {
@@ -191,7 +196,7 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
     const timestamp = Date.now();
     client.send({
       type: 'PING',
-      payload: { timestamp }
+      payload: { timestamp },
     });
 
     const pongMsg = await client.waitForMessage((m) => m.type === 'PONG');
@@ -201,7 +206,7 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
     }
   });
 
-  it('devrait mettre à jour le lobby lors de la déconnexion d\'un joueur', async () => {
+  it("devrait mettre à jour le lobby lors de la déconnexion d'un joueur", async () => {
     const client1 = await createClient();
     await client1.waitForMessage((m) => m.type === 'WELCOME');
     client1.send({ type: 'JOIN', payload: { name: 'Player 1' } });
@@ -216,14 +221,16 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
     client2.close();
 
     // client1 doit recevoir un LOBBY_STATE avec seulement 1 joueur
-    const updatedLobby = await client1.waitForMessage((m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 1);
+    const updatedLobby = await client1.waitForMessage(
+      (m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 1,
+    );
     if (updatedLobby.type === 'LOBBY_STATE') {
       expect(updatedLobby.payload.players).toHaveLength(1);
       expect(updatedLobby.payload.players[0].name).toBe('Player 1');
     }
   });
 
-  it('devrait diffuser GAME_OVER à tous les clients connectés lorsqu\'un joueur gagne la partie', async () => {
+  it("devrait diffuser GAME_OVER à tous les clients connectés lorsqu'un joueur gagne la partie", async () => {
     const client1 = await createClient();
     const welcome1 = await client1.waitForMessage((m) => m.type === 'WELCOME');
     const p1Id = welcome1.type === 'WELCOME' ? welcome1.payload.playerId : '';
@@ -251,7 +258,7 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
     // Les deux clients doivent recevoir GAME_OVER avec Player 1 désigné gagnant
     const [gameOver1, gameOver2] = await Promise.all([
       client1.waitForMessage((m) => m.type === 'GAME_OVER'),
-      client2.waitForMessage((m) => m.type === 'GAME_OVER')
+      client2.waitForMessage((m) => m.type === 'GAME_OVER'),
     ]);
 
     expect(gameOver1.type).toBe('GAME_OVER');
@@ -262,4 +269,3 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
     }
   });
 });
-

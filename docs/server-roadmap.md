@@ -39,7 +39,9 @@ Les 6 suites de tests couvrent l'intégralité du cycle de vie du serveur :
 ## Ce qu'il reste à faire concrètement
 
 ### 1. Mécanisme de Reset / Replay (Prochaine priorité)
+
 Permettre d'enchaîner plusieurs parties d'affilée sans redémarrer le serveur :
+
 - Implémenter une méthode `GameEngine.reset()` :
   - régénération d'une nouvelle carte vierge
   - remise à 0 du `tickCount` et de l'index de Mort Subite
@@ -50,7 +52,9 @@ Permettre d'enchaîner plusieurs parties d'affilée sans redémarrer le serveur 
   - diffuser le nouveau `LOBBY_STATE` pour permettre de relancer un match
 
 ### 2. Système de Power-Ups / Bonus
+
 Ajouter les objets à ramasser pour enrichir le gameplay :
+
 - Apparition aléatoire de bonus lors de la destruction d'un mur destructible :
   - `BOMB_UP` : augmente le nombre maximal de bombes (`maxBombs`)
   - `FIRE_UP` : augmente la portée des explosions (`bombRange`)
@@ -59,6 +63,7 @@ Ajouter les objets à ramasser pour enrichir le gameplay :
 - Diffusion des bonus sur la grille dans le `GameState`.
 
 ### 3. Gestion des déconnexions en cours de partie
+
 - Gérer le cas où un joueur quitte ou perd sa connexion WebSocket pendant une partie `IN_PROGRESS` :
   - passage de son état à `isAlive: false` (forfait)
   - vérification immédiate des conditions de victoire si un seul joueur reste connecté.

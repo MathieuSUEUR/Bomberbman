@@ -15,7 +15,7 @@ const HEIGHT = DEFAULT_GAME_CONFIG.gridHeight;
  * @returns Entier pseudo-aléatoire généré.
  */
 function randomInt(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 /**
@@ -27,12 +27,12 @@ function randomInt(min: number, max: number): number {
  * @returns Nouveau tableau contenant les mêmes éléments mélangés.
  */
 function shuffle<T>(array: T[]): T[] {
-    const result = [...array];
-    for (let i = result.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
 }
 
 /**
@@ -45,66 +45,63 @@ function shuffle<T>(array: T[]): T[] {
  * @returns Grille 2D de cases (matrice `HEIGHT` x `WIDTH`).
  */
 export function generateGrid(): CellType[][] {
-    // Initialisation d'une grille vide
-    const grid: CellType[][] = Array.from({ length: HEIGHT }, () =>
-        Array(WIDTH).fill(CellType.EMPTY)
-    );
+  // Initialisation d'une grille vide
+  const grid: CellType[][] = Array.from({ length: HEIGHT }, () =>
+    Array(WIDTH).fill(CellType.EMPTY),
+  );
 
-    // Placement des bordures et piliers indestructibles
-    for (let y = 0; y < HEIGHT; y++) {
-        for (let x = 0; x < WIDTH; x++) {
-            const isBorder = x === 0 || x === WIDTH - 1 || y === 0 || y === HEIGHT - 1;
-            const isInternalPillar = x % 2 === 0 && y % 2 === 0;
+  // Placement des bordures et piliers indestructibles
+  for (let y = 0; y < HEIGHT; y++) {
+    for (let x = 0; x < WIDTH; x++) {
+      const isBorder = x === 0 || x === WIDTH - 1 || y === 0 || y === HEIGHT - 1;
+      const isInternalPillar = x % 2 === 0 && y % 2 === 0;
 
-            if (isBorder || isInternalPillar) {
-                grid[y][x] = CellType.INDESTRUCTIBLE_WALL;
-            }
-        }
+      if (isBorder || isInternalPillar) {
+        grid[y][x] = CellType.INDESTRUCTIBLE_WALL;
+      }
     }
+  }
 
-    // Remplissage avec des murs destructibles hors zones de spawn
-    for (let y = 0; y < HEIGHT; y++) {
-        for (let x = 0; x < WIDTH; x++) {
-            if (
-                grid[y][x] === CellType.EMPTY &&
-                !isSafeCornerCell(x, y, WIDTH, HEIGHT)
-            ) {
-                grid[y][x] = CellType.DESTRUCTIBLE_WALL;
-            }
-        }
-    }
-
-    // Identification des piliers internes modifiables
-    const internalPillars: [number, number][] = [];
-    for (let y = 2; y < HEIGHT - 1; y += 2) {
-        for (let x = 2; x < WIDTH - 1; x += 2) {
-            internalPillars.push([x, y]);
-        }
-    }
-
-    // Remplacement aléatoire de piliers par des murs destructibles
-    const pillarsToReplace = shuffle(internalPillars).slice(0, randomInt(2, 4));
-    for (const [x, y] of pillarsToReplace) {
+  // Remplissage avec des murs destructibles hors zones de spawn
+  for (let y = 0; y < HEIGHT; y++) {
+    for (let x = 0; x < WIDTH; x++) {
+      if (grid[y][x] === CellType.EMPTY && !isSafeCornerCell(x, y, WIDTH, HEIGHT)) {
         grid[y][x] = CellType.DESTRUCTIBLE_WALL;
+      }
     }
+  }
 
-    // Identification des murs destructibles pour aération
-    const destructibleCells: [number, number][] = [];
-    for (let y = 1; y < HEIGHT - 1; y++) {
-        for (let x = 1; x < WIDTH - 1; x++) {
-            if (grid[y][x] === CellType.DESTRUCTIBLE_WALL) {
-                destructibleCells.push([x, y]);
-            }
-        }
+  // Identification des piliers internes modifiables
+  const internalPillars: [number, number][] = [];
+  for (let y = 2; y < HEIGHT - 1; y += 2) {
+    for (let x = 2; x < WIDTH - 1; x += 2) {
+      internalPillars.push([x, y]);
     }
+  }
 
-    // Évidement aléatoire de certaines cases
-    const cellsToEmpty = shuffle(destructibleCells).slice(0, randomInt(4, 6));
-    for (const [x, y] of cellsToEmpty) {
-        grid[y][x] = CellType.EMPTY;
+  // Remplacement aléatoire de piliers par des murs destructibles
+  const pillarsToReplace = shuffle(internalPillars).slice(0, randomInt(2, 4));
+  for (const [x, y] of pillarsToReplace) {
+    grid[y][x] = CellType.DESTRUCTIBLE_WALL;
+  }
+
+  // Identification des murs destructibles pour aération
+  const destructibleCells: [number, number][] = [];
+  for (let y = 1; y < HEIGHT - 1; y++) {
+    for (let x = 1; x < WIDTH - 1; x++) {
+      if (grid[y][x] === CellType.DESTRUCTIBLE_WALL) {
+        destructibleCells.push([x, y]);
+      }
     }
+  }
 
-    return grid;
+  // Évidement aléatoire de certaines cases
+  const cellsToEmpty = shuffle(destructibleCells).slice(0, randomInt(4, 6));
+  for (const [x, y] of cellsToEmpty) {
+    grid[y][x] = CellType.EMPTY;
+  }
+
+  return grid;
 }
 
 /**
@@ -113,7 +110,7 @@ export function generateGrid(): CellType[][] {
  * @returns Instance de carte prête pour une partie.
  */
 export function generateMap(): GameMap {
-    return new GameMap(generateGrid());
+  return new GameMap(generateGrid());
 }
 
 /**
@@ -127,14 +124,14 @@ export function generateMap(): GameMap {
  * @param grid - Grille à afficher.
  */
 export function debugMap(grid: CellType[][]): void {
-    const symbols: Record<CellType, string> = {
-        [CellType.EMPTY]: '.',
-        [CellType.INDESTRUCTIBLE_WALL]: '#',
-        [CellType.DESTRUCTIBLE_WALL]: 'X',
-    };
+  const symbols: Record<CellType, string> = {
+    [CellType.EMPTY]: '.',
+    [CellType.INDESTRUCTIBLE_WALL]: '#',
+    [CellType.DESTRUCTIBLE_WALL]: 'X',
+  };
 
-    console.info('Map:');
-    for (const row of grid) {
-        console.info(row.map(cell => symbols[cell]).join(' '));
-    }
+  console.info('Map:');
+  for (const row of grid) {
+    console.info(row.map((cell) => symbols[cell]).join(' '));
+  }
 }

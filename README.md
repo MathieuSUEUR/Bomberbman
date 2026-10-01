@@ -7,6 +7,7 @@ Projet universitaire realise dans le cadre du **BUT 3 Informatique - Qualite de 
 ## Presentation du Projet
 
 **Bomberman Arena** est un jeu multijoueur en temps reel base sur une architecture Client-Serveur stricte :
+
 - **Serveur (Backend)** : Moteur de jeu autoritaire sous Node.js avec synchronisation WebSocket.
 - **Client (Frontend)** : Application de bureau hybride (Electron + Vite + TypeScript & PixiJS).
 - **Shared** : Contrats de messages JSON et types TypeScript partages.
@@ -52,16 +53,16 @@ npm install
 
 Toutes les commandes se lancent depuis la **racine** du monorepo :
 
-| Commande | Description |
-| :--- | :--- |
-| `npm run dev` | Lance le serveur et le client en simultane avec rechargement a chaud |
-| `npm run dev:server` | Lance uniquement le serveur en mode developpement (surveille `src/index.ts`) |
-| `npm run dev:client` | Lance uniquement le client web/desktop Vite |
-| `npm run build` | Compile l'ensemble des packages (`shared`, `server`, `client`) |
-| `npm run lint` | Lance l'analyse statique du code (ESLint) |
-| `npm run format` | Formate automatiquement tous les fichiers du projet (Prettier) |
-| `npm run format:check` | Verifie le formatage sans le modifier |
-| `npm test` | Execute la suite de tests automatises (Vitest) |
+| Commande               | Description                                                                  |
+| :--------------------- | :--------------------------------------------------------------------------- |
+| `npm run dev`          | Lance le serveur et le client en simultane avec rechargement a chaud         |
+| `npm run dev:server`   | Lance uniquement le serveur en mode developpement (surveille `src/index.ts`) |
+| `npm run dev:client`   | Lance uniquement le client web/desktop Vite                                  |
+| `npm run build`        | Compile l'ensemble des packages (`shared`, `server`, `client`)               |
+| `npm run lint`         | Lance l'analyse statique du code (ESLint)                                    |
+| `npm run format`       | Formate automatiquement tous les fichiers du projet (Prettier)               |
+| `npm run format:check` | Verifie le formatage sans le modifier                                        |
+| `npm test`             | Execute la suite de tests automatises (Vitest)                               |
 
 Le serveur ecoute sur le port `3000` (modifiable avec la variable d'environnement `PORT`), port auquel le client se connecte.
 
@@ -124,18 +125,21 @@ Bomberbman/
 Selon les consignes du sujet d'evaluation :
 
 ### 1. Pole Backend / Serveur
+
 - Developper la logique du jeu dans `server/src/` (gestion des salles, collisions, grilles, explosions).
 - Gerer les connexions WebSockets et la diffusion des etats de jeu aux clients.
 - S'assurer que le serveur reste **autoritaire** (le client ne valide aucune action de gameplay).
 - Ecrire des tests unitaires pour la logique metier.
 
 ### 2. Pole Frontend / Client
+
 - Developper l'interface et le rendu graphique dans `client/src/` (PixiJS / Canvas 2D).
 - Gerer la capture des entrees clavier (ZQSD / Fleches, Espace pour poser une bombe).
 - **Contrainte Qualite** : Decoupler strictement la couche reseau du moteur graphique (ex: via un bus d'evenements interne).
 - **Mocking** : Prevoir la possibilite de tester l'interface hors-ligne avec des donnees simulees.
 
 ### 3. Pole DevOps & Qualite
+
 - Maintenir la configuration du pipeline CI (`.github/workflows/ci.yml`).
 - Veiller au respect de **GitFlow** et a la proprete des Pull Requests.
 - Rediger la documentation technique dans le dossier `docs/`.

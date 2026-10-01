@@ -1,10 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'node:crypto';
-import {
-  ClientMessage,
-  ServerMessage,
-  LobbyPlayer
-} from '@bomberman/shared';
+import { ClientMessage, ServerMessage, LobbyPlayer } from '@bomberman/shared';
 import { GameEngine } from '../engine/GameEngine.js';
 
 /**
@@ -12,7 +8,6 @@ import { GameEngine } from '../engine/GameEngine.js';
  * Sert de pont entre les clients et le moteur de jeu (GameEngine).
  */
 export class SocketManager {
-
   private wss: WebSocketServer;
 
   /**
@@ -39,13 +34,13 @@ export class SocketManager {
   constructor(port: number, engine: GameEngine) {
     this.engine = engine;
     this.wss = new WebSocketServer({ port });
-    
+
     this.wss.on('connection', (ws: WebSocket) => {
       this.handleConnection(ws);
     });
 
     this.setupEngineListeners();
-    
+
     console.info(`SocketManager: WebSocket server started on port ${port}`);
   }
 
@@ -57,34 +52,34 @@ export class SocketManager {
     this.engine.on('tick', (state) => {
       this.broadcast({
         type: 'GAME_STATE',
-        payload: state
+        payload: state,
       });
     });
 
     this.engine.on('bombExploded', (payload) => {
       this.broadcast({
         type: 'BOMB_EXPLODED',
-        payload
+        payload,
       });
     });
 
     this.engine.on('playerEliminated', (payload) => {
       this.broadcast({
         type: 'PLAYER_ELIMINATED',
-        payload
+        payload,
       });
     });
 
     this.engine.on('gameOver', (payload) => {
       this.broadcast({
         type: 'GAME_OVER',
-        payload
+        payload,
       });
     });
   }
 
   /**
-   * Gère une nouvelle connexion WebSocket entrante. 
+   * Gère une nouvelle connexion WebSocket entrante.
    * Assigne un UUID au client et met en place les écouteurs de messages et de déconnexion.
    *
    * @param ws - L'instance WebSocket représentant la connexion du client.
@@ -96,7 +91,7 @@ export class SocketManager {
     // Envoi du message de bienvenue avec l'ID généré pour que le client s'identifie
     this.sendMessage(ws, {
       type: 'WELCOME',
-      payload: { playerId: clientId }
+      payload: { playerId: clientId },
     });
 
     // Gestion de la réception d'un message depuis ce client
@@ -109,7 +104,7 @@ export class SocketManager {
         // Traitement du message mal formé
         this.sendMessage(ws, {
           type: 'ERROR',
-          payload: { message: 'Invalid JSON or message structure' }
+          payload: { message: 'Invalid JSON or message structure' },
         });
       }
     });
@@ -117,7 +112,7 @@ export class SocketManager {
     // Gestion de la déconnexion du client
     ws.on('close', () => {
       this.clients.delete(clientId);
-      this.lobbyPlayers = this.lobbyPlayers.filter(p => p.id !== clientId);
+      this.lobbyPlayers = this.lobbyPlayers.filter((p) => p.id !== clientId);
       this.broadcastLobbyState(); // Mise à jour de l'état du lobby pour les autres joueurs
     });
   }
@@ -135,7 +130,7 @@ export class SocketManager {
         this.lobbyPlayers.push({
           id: clientId,
           name: message.payload.name,
-          isReady: false
+          isReady: false,
         });
         // Notification de l'arrivée aux autres clients
         this.broadcastLobbyState();
@@ -143,7 +138,7 @@ export class SocketManager {
 
       case 'READY': {
         // Le joueur confirme qu'il est prêt à démarrer
-        const player = this.lobbyPlayers.find(p => p.id === clientId);
+        const player = this.lobbyPlayers.find((p) => p.id === clientId);
         if (player) {
           player.isReady = message.payload?.isReady ?? true;
           this.broadcastLobbyState();
@@ -157,7 +152,7 @@ export class SocketManager {
         // Transmission de l'action réseau (ex: poser une bombe) à la file d'attente du GameEngine
         this.engine.ajouterAction({
           playerId: clientId,
-          actionType: message.payload.actionType
+          actionType: message.payload.actionType,
         });
         break;
       }
@@ -168,7 +163,7 @@ export class SocketManager {
         if (ws) {
           this.sendMessage(ws, {
             type: 'PONG',
-            payload: { timestamp: message.payload?.timestamp || Date.now() }
+            payload: { timestamp: message.payload?.timestamp || Date.now() },
           });
         }
         break;
@@ -182,14 +177,14 @@ export class SocketManager {
    */
   private broadcastLobbyState() {
     // La partie peut démarrer si au moins 2 joueurs sont présents et tous sont en statut 'READY'
-    const canStart = this.lobbyPlayers.length >= 2 && this.lobbyPlayers.every(p => p.isReady);
-    
+    const canStart = this.lobbyPlayers.length >= 2 && this.lobbyPlayers.every((p) => p.isReady);
+
     this.broadcast({
       type: 'LOBBY_STATE',
       payload: {
         players: this.lobbyPlayers,
-        canStart
-      }
+        canStart,
+      },
     });
   }
 
@@ -197,7 +192,7 @@ export class SocketManager {
    * Vérifie si les conditions de lancement sont réunies et déclenche le démarrage du jeu.
    */
   private checkGameStart() {
-    const canStart = this.lobbyPlayers.length >= 2 && this.lobbyPlayers.every(p => p.isReady);
+    const canStart = this.lobbyPlayers.length >= 2 && this.lobbyPlayers.every((p) => p.isReady);
 
     if (canStart && this.engine.obtenirEtatActuel().status === 'WAITING') {
       // Transmission de la position et des informations des joueurs au moteur
@@ -209,9 +204,9 @@ export class SocketManager {
       // Notification aux clients du début de la partie
       this.broadcast({
         type: 'GAME_START',
-        payload: { initialState }
+        payload: { initialState },
       });
-      
+
       console.info('SocketManager: All players ready, GAME_START broadcasted!');
     }
   }
@@ -283,5 +278,4 @@ export class SocketManager {
       }
     }
   }
-
 }

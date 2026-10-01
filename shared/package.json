@@ -9,6 +9,11 @@
     "build": "tsc",
     "dev": "tsc --watch"
   },
-  "keywords": ["bomberman", "shared", "types", "protocol"],
+  "keywords": [
+    "bomberman",
+    "shared",
+    "types",
+    "protocol"
+  ],
   "license": "ISC"
 }

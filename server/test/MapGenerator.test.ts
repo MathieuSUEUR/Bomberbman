@@ -16,7 +16,9 @@ describe('MapGenerator', () => {
     expect(grid[0][0]).toBe(CellType.INDESTRUCTIBLE_WALL);
     expect(grid[0][DEFAULT_GAME_CONFIG.gridWidth - 1]).toBe(CellType.INDESTRUCTIBLE_WALL);
     expect(grid[DEFAULT_GAME_CONFIG.gridHeight - 1][0]).toBe(CellType.INDESTRUCTIBLE_WALL);
-    expect(grid[DEFAULT_GAME_CONFIG.gridHeight - 1][DEFAULT_GAME_CONFIG.gridWidth - 1]).toBe(CellType.INDESTRUCTIBLE_WALL);
+    expect(grid[DEFAULT_GAME_CONFIG.gridHeight - 1][DEFAULT_GAME_CONFIG.gridWidth - 1]).toBe(
+      CellType.INDESTRUCTIBLE_WALL,
+    );
   });
 
   it('laisse vides les zones de sécurité des coins', () => {
