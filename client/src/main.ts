@@ -1,14 +1,28 @@
 import './style.css';
 import { GameRenderer } from './view/GameRenderer';
+import { HudManager } from './view/HudManager';
 import { eventBus } from './core/EventBus';
 import { InputManager } from './core/InputManager';
 import { SocketManager } from './network/SocketManager';
 
-// 1. Initialisation de l'affichage du Canvas
+// 1. Initialisation de l'affichage du Canvas et du HUD
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 canvas.width = 500;
 canvas.height = 500;
 new GameRenderer(canvas);
+
+const canvasFrame = document.querySelector('.canvas-frame') as HTMLElement;
+export const hudManager = new HudManager(
+  canvasFrame || document.getElementById('game-container')!,
+  {
+    initialTimerSeconds: 0,
+    initialScore: 0,
+    initialBombs: 1,
+    initialMaxBombs: 1,
+    initialLives: 3,
+    initialMaxLives: 3,
+  },
+);
 
 // 2. Initialisation du clavier et de la connexion WebSocket
 new InputManager();
@@ -81,6 +95,13 @@ function startMockGame(): void {
   mockGameState.players[0].y = 1;
   mockGameState.players[0].direction = 'DOWN';
 
+  // Réinitialisation du HUD pour la nouvelle partie
+  eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
+  eventBus.emit('HUD_TIMER_START');
+  eventBus.emit('HUD_UPDATE_BOMBS', { available: 1, max: 1 });
+  eventBus.emit('HUD_UPDATE_SCORE', { score: 0 });
+  eventBus.emit('HUD_UPDATE_LIVES', { lives: 3, maxLives: 3 });
+
   // Émettre le premier état de jeu
   eventBus.emit('GAME_STATE_UPDATE', mockGameState);
 }
@@ -145,6 +166,7 @@ btnBackMenu.addEventListener('click', () => {
 if (btnLeaveGame) {
   btnLeaveGame.addEventListener('click', () => {
     isGameActive = false;
+    eventBus.emit('HUD_TIMER_STOP');
     showScreen('menu');
   });
 }
@@ -211,6 +233,9 @@ eventBus.on('GAME_START', (payload: unknown) => {
   const data = payload as { initialState?: unknown };
   isGameActive = true;
   showScreen('game');
+
+  eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
+  eventBus.emit('HUD_TIMER_START');
 
   if (data?.initialState) {
     eventBus.emit('GAME_STATE_UPDATE', data.initialState);
