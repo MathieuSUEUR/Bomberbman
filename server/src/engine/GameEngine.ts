@@ -26,9 +26,10 @@ export class GameEngine extends EventEmitter {
     private bombManager: BombManager;
     private actionFile: PlayerAction[];
     private gameLoopInterval: NodeJS.Timeout | null = null;
-    
+
     private suddenDeathIndex: number = 0;
     private suddenDeathPositions: Position[] = [];
+    private activeDirections: Map<string, Set<Direction>>;
 
     constructor() {
         super();
@@ -38,6 +39,7 @@ export class GameEngine extends EventEmitter {
         this.bombManager = new BombManager(DEFAULT_GAME_CONFIG.bombCountdownTicks, DEFAULT_GAME_CONFIG.explosionDurationTicks);
         this.players = new Map();
         this.actionFile = [];
+        this.activeDirections = new Map();
         this.suddenDeathIndex = 0;
         this.suddenDeathPositions = this.generateSpiralPositions(DEFAULT_GAME_CONFIG.gridWidth, DEFAULT_GAME_CONFIG.gridHeight);
     }
@@ -82,9 +84,9 @@ export class GameEngine extends EventEmitter {
         this.tickCount++;
 
         this.processActions();
-        
+
         const tickResult = this.bombManager.tick(this.tickCount, this.map, this.players);
-        
+
         // Émettre les événements pour chaque bombe qui a explosé
         tickResult.explodedBombs.forEach(bombPayload => {
             this.emit('bombExploded', bombPayload);
@@ -98,12 +100,12 @@ export class GameEngine extends EventEmitter {
         // Gestion de la Mort Subite (Sudden Death)
         if (this.tickCount > DEFAULT_GAME_CONFIG.gameDurationTicks) {
             const overTime = this.tickCount - DEFAULT_GAME_CONFIG.gameDurationTicks;
-            
+
             if (overTime % DEFAULT_GAME_CONFIG.suddenDeathDropIntervalTicks === 0) {
                 if (this.suddenDeathIndex < this.suddenDeathPositions.length) {
                     const pos = this.suddenDeathPositions[this.suddenDeathIndex++];
                     this.map.setCell(pos.x, pos.y, CellType.INDESTRUCTIBLE_WALL);
-                    
+
                     // Éliminer tout joueur écrasé par le bloc
                     this.players.forEach(p => {
                         if (p.isAlive && p.position.x === pos.x && p.position.y === pos.y) {
@@ -153,9 +155,10 @@ export class GameEngine extends EventEmitter {
                 maxBombs: 1,
                 currentBombs: 0,
                 bombRange: 2,
-                speed: 1,
+                speed: 0.15,
                 color: `player-${index + 1}`
             });
+            this.activeDirections.set(player.id, new Set());
         });
         this.status = 'IN_PROGRESS';//instance du game engine en cours
         this.startGameLoop();
@@ -166,17 +169,17 @@ export class GameEngine extends EventEmitter {
      */
     public startGameLoop(): void {
         if (this.gameLoopInterval) return;
-        
+
         // Calcul de l'intervalle en ms (ex: tickRate 20 = 50ms)
         const tickIntervalMs = 1000 / DEFAULT_GAME_CONFIG.tickRate;
-        
+
         this.gameLoopInterval = setInterval(() => {
             if (this.status === 'IN_PROGRESS') {
                 const state = this.tick();
                 this.emit('tick', state);
             }
         }, tickIntervalMs);
-        
+
         console.info(`GameEngine: boucle de jeu démarrée (${DEFAULT_GAME_CONFIG.tickRate} ticks/s)`);
     }
 
@@ -222,10 +225,7 @@ export class GameEngine extends EventEmitter {
             return;
         }
 
-        // Ensemble des joueurs ayant déjà effectué un déplacement durant ce tick
-        const hasMoved = new Set<string>();
-
-        // On traite les actions en attente
+        // On traite les actions (keydown / keyup / place bomb)
         while (this.actionFile.length > 0) {
             const action = this.actionFile.shift();
             if (!action) continue;
@@ -233,27 +233,37 @@ export class GameEngine extends EventEmitter {
             const player = this.players.get(action.playerId);
             if (!player || !player.isAlive) continue;
 
+            const dirs = this.activeDirections.get(player.id);
+            if (!dirs) continue;
+
             switch (action.actionType) {
-                case 'MOVE_UP':
-                    this.handlePlayerMove(player, 'UP', hasMoved);
-                    break;
-                case 'MOVE_DOWN':
-                    this.handlePlayerMove(player, 'DOWN', hasMoved);
-                    break;
-                case 'MOVE_LEFT':
-                    this.handlePlayerMove(player, 'LEFT', hasMoved);
-                    break;
-                case 'MOVE_RIGHT':
-                    this.handlePlayerMove(player, 'RIGHT', hasMoved);
-                    break;
+                case 'MOVE_START_UP': dirs.add('UP'); break;
+                case 'MOVE_START_DOWN': dirs.add('DOWN'); break;
+                case 'MOVE_START_LEFT': dirs.add('LEFT'); break;
+                case 'MOVE_START_RIGHT': dirs.add('RIGHT'); break;
+                case 'MOVE_END_UP': dirs.delete('UP'); break;
+                case 'MOVE_END_DOWN': dirs.delete('DOWN'); break;
+                case 'MOVE_END_LEFT': dirs.delete('LEFT'); break;
+                case 'MOVE_END_RIGHT': dirs.delete('RIGHT'); break;
                 case 'PLACE_BOMB':
                     this.playerPlaceBomb(player);
                     break;
                 default:
                     break;
             }
+        }
 
-            // TODO:: ajouter le pick up des power-up
+        // TODO:: ajouter le pick up des power-up
+
+        // Appliquer le mouvement en continu
+        for (const [playerId, player] of this.players.entries()) {
+            if (!player.isAlive) continue;
+            const dirs = this.activeDirections.get(playerId);
+            if (dirs) {
+                for (const direction of dirs) {
+                    this.handlePlayerMove(player, direction);
+                }
+            }
         }
     }
 
@@ -261,12 +271,9 @@ export class GameEngine extends EventEmitter {
      * Gère la tentative de déplacement d'un joueur dans une direction donnée
      * @param player L'état du joueur
      * @param direction La direction demandée
-     * @param hasMoved Ensemble des joueurs ayant déjà bougé durant ce tick
      */
-    private handlePlayerMove(player: PlayerState, direction: Direction, hasMoved: Set<string>): void {
-        if (hasMoved.has(player.id)) return;
+    private handlePlayerMove(player: PlayerState, direction: Direction): void {
         this.movePlayerTo(player, direction);
-        hasMoved.add(player.id);
     }
 
     /**
@@ -276,16 +283,18 @@ export class GameEngine extends EventEmitter {
      * @returns boolean True si le joueur peut se déplacer, false sinon
      */
     private canMoveTo(targetX: number, targetY: number): boolean {
+        const roundedX = Math.round(targetX);
+        const roundedY = Math.round(targetY);
 
         // si la case est un mur ou une bordure, on ne peut pas se déplacer
-        if(this.map.get(targetX, targetY) !== CellType.EMPTY) return false;
+        if (this.map.get(roundedX, roundedY) !== CellType.EMPTY) return false;
 
         // si la case est déjà occupée par une bombe, on ne peut pas se déplacer
         const hasBomb = this.bombManager.getBombs().some(
-            b => b.position.x === targetX && b.position.y === targetY
+            b => b.position.x === roundedX && b.position.y === roundedY
         );
         if (hasBomb) return false;
-       
+
         return true;
     }
 
@@ -295,11 +304,11 @@ export class GameEngine extends EventEmitter {
      * @param direction La direction du mouvement
      */
     private movePlayerTo(player: PlayerState, direction: Direction): void {
-        if(!player.isAlive) return;
-        
+        if (!player.isAlive) return;
+
         const newPos = { x: player.position.x, y: player.position.y };
 
-        switch(direction) {
+        switch (direction) {
             case 'UP':
                 newPos.y -= player.speed;
                 break;
@@ -327,8 +336,11 @@ export class GameEngine extends EventEmitter {
      * @param player Le joueur à vérifier
      */
     private checkPlayerExplosionCollision(player: PlayerState): void {
+        const roundedX = Math.round(player.position.x);
+        const roundedY = Math.round(player.position.y);
+
         const isInExplosion = this.bombManager.getExplosions().some(
-            exp => exp.position.x === player.position.x && exp.position.y === player.position.y
+            exp => exp.position.x === roundedX && exp.position.y === roundedY
         );
 
         if (isInExplosion) {
@@ -342,19 +354,22 @@ export class GameEngine extends EventEmitter {
      * @param player L'état du joueur
      */
     private playerPlaceBomb(player: PlayerState): void {
-        if(!player.isAlive) return;
+        if (!player.isAlive) return;
+
+        const roundedX = Math.round(player.position.x);
+        const roundedY = Math.round(player.position.y);
 
         // on vérifie que la case est bien vide
-        if(this.map.get(player.position.x, player.position.y) !== CellType.EMPTY) return;
+        if (this.map.get(roundedX, roundedY) !== CellType.EMPTY) return;
 
         // on vérifie qu'il n'y ait pas deja une bombe sur la case
-        if(this.bombManager.getBombs().some(bomb => bomb.position.x === player.position.x && bomb.position.y === player.position.y)) return;
+        if (this.bombManager.getBombs().some(bomb => bomb.position.x === roundedX && bomb.position.y === roundedY)) return;
 
         // on vérifie que le joueur a encore des bombes disponibles
-        if(player.currentBombs >= player.maxBombs) return;
+        if (player.currentBombs >= player.maxBombs) return;
 
         // on place la bombe
-        this.bombManager.placerBombe(player.id, player.position.x, player.position.y, player.bombRange, this.tickCount);
+        this.bombManager.placerBombe(player.id, roundedX, roundedY, player.bombRange, this.tickCount);
         player.currentBombs++;
     }
 

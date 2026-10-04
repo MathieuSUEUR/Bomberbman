@@ -27,7 +27,7 @@ describe('GameEngine - Tests unitaires primitifs', () => {
     expect(() => {
       engine.ajouterAction({
         playerId: 'p1',
-        actionType: 'MOVE_UP',
+        actionType: 'MOVE_START_UP',
       });
     }).not.toThrow();
   });

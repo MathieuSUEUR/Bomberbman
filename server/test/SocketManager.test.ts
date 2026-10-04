@@ -175,7 +175,7 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
 
     client.send({
       type: 'ACTION',
-      payload: { actionType: 'MOVE_UP' }
+      payload: { actionType: 'MOVE_START_UP' }
     });
 
     expect(() => {

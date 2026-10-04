@@ -7,10 +7,14 @@ export type GameStatus = 'WAITING' | 'STARTING' | 'IN_PROGRESS' | 'FINISHED';
 
 //type d'action
 export type ActionType =
-  | 'MOVE_UP'
-  | 'MOVE_DOWN'
-  | 'MOVE_LEFT'
-  | 'MOVE_RIGHT'
+  | 'MOVE_START_UP'
+  | 'MOVE_START_DOWN'
+  | 'MOVE_START_LEFT'
+  | 'MOVE_START_RIGHT'
+  | 'MOVE_END_UP'
+  | 'MOVE_END_DOWN'
+  | 'MOVE_END_LEFT'
+  | 'MOVE_END_RIGHT'
   | 'PLACE_BOMB';
 
 //action d'un joueur
