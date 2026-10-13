@@ -32,15 +32,20 @@ export interface GameState {
   winnerId?: string | null;
 }
 
-//configuration de la partie
 export interface GameConfig {
   tickRate: number;
   gridWidth: number;
   gridHeight: number;
-  bombCountdownTicks: number;
+  bombCountdownTicks: number;  
+  bombRechargeTicks: number;    
   explosionDurationTicks: number;
+  powerUpDropPercentage: number;
+  startingLives: number;
+  invulnerabilityDurationTicks: number;
   gameDurationTicks: number;
   suddenDeathDropIntervalTicks: number;
+  moveDelayTicks: number;
+  minMoveDelayTicks: number;
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
@@ -48,9 +53,15 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   gridWidth: 15,
   gridHeight: 13,
   bombCountdownTicks: 60,
+  bombRechargeTicks: 100,
   explosionDurationTicks: 10,
+  powerUpDropPercentage: 33,
+  startingLives: 1,
+  invulnerabilityDurationTicks: 100,
   gameDurationTicks: 2400, // 2 minutes (120s * 20 ticks)
   suddenDeathDropIntervalTicks: 10, // Un bloc toutes les 0.5s
+  moveDelayTicks: 4,        // 0,2 s a 20 ticks/s
+  minMoveDelayTicks: 2,
 };
 
 /**

@@ -191,6 +191,106 @@ body {
   font-size: 15px;
   font-family: inherit;
   font-weight: 500;
+}
+
+/* En-tête de marque / Titre */
+.brand {
+  margin-bottom: 24px;
+}
+
+.bomb-badge {
+  font-size: 42px;
+  display: inline-block;
+  filter: drop-shadow(0 0 16px rgba(255, 120, 0, 0.6));
+  animation: floatBomb 3s ease-in-out infinite;
+  margin-bottom: 6px;
+}
+
+@keyframes floatBomb {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(4deg);
+  }
+}
+
+.game-title {
+  font-family: var(--font-retro);
+  font-size: 24px;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow:
+    0 0 20px rgba(255, 100, 0, 0.5),
+    0 4px 10px rgba(0, 0, 0, 0.7);
+  margin-bottom: 8px;
+}
+
+.game-title .highlight {
+  color: #ff9900;
+  display: inline-block;
+  margin-left: 6px;
+}
+
+.game-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Carte centrale du menu */
+.menu-card {
+  width: 100%;
+  background: rgba(13, 17, 23, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Formulaire pseudo */
+.form-group {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 14px;
+  font-size: 16px;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.text-input {
+  width: 100%;
+  background: rgba(22, 27, 34, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 12px 14px 12px 42px;
+  color: #fff;
+  font-size: 15px;
+  font-family: inherit;
+  font-weight: 500;
   outline: none;
   transition: all 0.2s ease;
 }
@@ -512,6 +612,42 @@ kbd {
   border-radius: 12px;
   padding: 10px 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.hud-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-logo {
+  font-size: 18px;
+}
+
+.hud-title {
+  font-family: var(--font-retro);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #ff9900;
+}
+
+.canvas-frame {
+  position: relative;
+  padding: 8px;
+  background: #111;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 123, 0, 0.4);
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.8),
+    0 0 24px rgba(255, 85, 0, 0.2);
+}
+
+#game-canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background-color: #000;
+  border-radius: 6px;
 }
 
 .hud-left {

@@ -7,8 +7,13 @@ export interface PlayerState {
   position: Position;
   isAlive: boolean;
   maxBombs: number;
-  currentBombs: number;
+  bombStock: number;
   bombRange: number;
+  lives: number;
+  bombRechargeTicks: number;
+  nextBombRechargeTick: number | null;
   speed: number;
+  nextMoveTick: number;
   color?: string;
+  invulnerableUntilTick: number;
 }
