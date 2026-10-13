@@ -500,7 +500,9 @@ kbd {
   align-items: center;
   gap: 12px;
   animation: fadeIn 0.3s ease-out;
+  position: relative;
 }
+
 
 .game-hud {
   width: 500px;
