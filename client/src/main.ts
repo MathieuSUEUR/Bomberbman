@@ -1,14 +1,30 @@
 import './style.css';
 import { GameRenderer } from './view/GameRenderer';
+import { GameOverManager } from './view/GameOverManager';
+import { HudManager } from './view/HudManager';
 import { eventBus } from './core/EventBus';
 import { InputManager } from './core/InputManager';
 import { SocketManager } from './network/SocketManager';
 
 // 1. Initialisation de l'affichage du Canvas
+// 1. Initialisation de l'affichage du Canvas et du HUD
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 canvas.width = 500;
 canvas.height = 500;
 new GameRenderer(canvas);
+
+const canvasFrame = document.querySelector('.canvas-frame') as HTMLElement;
+export const hudManager = new HudManager(
+  canvasFrame || document.getElementById('game-container')!,
+  {
+    initialTimerSeconds: 0,
+    initialScore: 0,
+    initialBombs: 1,
+    initialMaxBombs: 1,
+    initialLives: 3,
+    initialMaxLives: 3,
+  },
+);
 
 // 2. Initialisation du clavier et de la connexion WebSocket
 new InputManager();
@@ -40,6 +56,7 @@ const serverStatusText = document.getElementById('server-status-text');
 
 // 4. Gestion de l'état de l'interface
 let currentPseudo = 'Joueur 1';
+let localPlayerId = '';
 let isPlayerReady = false;
 let isGameActive = false;
 
@@ -53,6 +70,26 @@ function showScreen(screen: ScreenType): void {
   }
   gameCanvas.style.display = screen === 'game' ? 'block' : 'none';
 }
+
+// 4b. Instanciation du gestionnaire de la modale Game Over
+const gameOverManager = new GameOverManager(
+  // Callback "Rejouer" : retour au lobby
+  () => {
+    isGameActive = false;
+    isPlayerReady = false;
+    if (btnReadyText) btnReadyText.textContent = 'Je suis prêt !';
+    if (currentPlayerStatus) {
+      currentPlayerStatus.className = 'player-status-tag waiting';
+      currentPlayerStatus.textContent = 'En attente';
+    }
+    showScreen('lobby');
+  },
+  // Callback "Menu principal"
+  () => {
+    isGameActive = false;
+    showScreen('menu');
+  },
+);
 
 function escapeHtml(str: string): string {
   const div = document.createElement('div');
@@ -80,6 +117,13 @@ function startMockGame(): void {
   mockGameState.players[0].x = 1;
   mockGameState.players[0].y = 1;
   mockGameState.players[0].direction = 'DOWN';
+
+  // Réinitialisation du HUD pour la nouvelle partie
+  eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
+  eventBus.emit('HUD_TIMER_START');
+  eventBus.emit('HUD_UPDATE_BOMBS', { available: 1, max: 1 });
+  eventBus.emit('HUD_UPDATE_SCORE', { score: 0 });
+  eventBus.emit('HUD_UPDATE_LIVES', { lives: 3, maxLives: 3 });
 
   // Émettre le premier état de jeu
   eventBus.emit('GAME_STATE_UPDATE', mockGameState);
@@ -141,10 +185,47 @@ btnBackMenu.addEventListener('click', () => {
   showScreen('menu');
 });
 
+});
+
+// Clic sur "Je suis prêt !" dans le salon d'attente
+btnReady.addEventListener('click', () => {
+  isPlayerReady = !isPlayerReady;
+  eventBus.emit('SET_READY', { isReady: isPlayerReady });
+
+  if (btnReadyText) {
+    btnReadyText.textContent = isPlayerReady ? 'Prêt ! (Annuler)' : 'Je suis prêt !';
+  }
+
+  if (currentPlayerStatus) {
+    currentPlayerStatus.className = `player-status-tag ${isPlayerReady ? 'ready' : 'waiting'}`;
+    currentPlayerStatus.textContent = isPlayerReady ? 'Prêt' : 'En attente';
+  }
+});
+
+// Clic sur "Lancer la partie" depuis le salon d'attente
+btnStartGame.addEventListener('click', () => {
+  startMockGame();
+});
+
+// Clic sur "Retour au menu" depuis le salon d'attente
+btnBackMenu.addEventListener('click', () => {
+  isPlayerReady = false;
+  if (btnReadyText) {
+    btnReadyText.textContent = 'Je suis prêt !';
+  }
+  if (currentPlayerStatus) {
+    currentPlayerStatus.className = 'player-status-tag waiting';
+    currentPlayerStatus.textContent = 'En attente';
+  }
+  showScreen('menu');
+});
+
 // Clic sur "Quitter la partie" depuis la zone de jeu
 if (btnLeaveGame) {
   btnLeaveGame.addEventListener('click', () => {
     isGameActive = false;
+    gameOverManager.hide();
+    eventBus.emit('HUD_TIMER_STOP');
     showScreen('menu');
   });
 }
@@ -161,6 +242,14 @@ eventBus.on('SERVER_STATUS', (status: unknown) => {
       serverStatusDot.className = 'status-dot offline';
       serverStatusText.textContent = 'Serveur hors-ligne (mode solo/mock)';
     }
+  }
+});
+
+// Réception de l'ID joueur local attribué par le serveur dès la connexion
+eventBus.on('WELCOME', (payload: unknown) => {
+  const data = payload as { playerId: string };
+  if (data?.playerId) {
+    localPlayerId = data.playerId;
   }
 });
 
@@ -212,9 +301,34 @@ eventBus.on('GAME_START', (payload: unknown) => {
   isGameActive = true;
   showScreen('game');
 
+  const data = payload as { initialState?: unknown; playerId?: string };
+  isGameActive = true;
+  // Mémoriser l'ID local reçu à la connexion (WELCOME) ou au GAME_START
+  if (data?.playerId) localPlayerId = data.playerId;
+  showScreen('game');
+
+  eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
+  eventBus.emit('HUD_TIMER_START');
+
   if (data?.initialState) {
     eventBus.emit('GAME_STATE_UPDATE', data.initialState);
   }
+});
+
+// Événement GAME_OVER reçu du serveur
+interface GameOverPayload {
+  winnerId: string | null;
+  winnerName?: string | null;
+}
+
+eventBus.on('GAME_OVER', (payload: unknown) => {
+  const data = payload as GameOverPayload;
+  isGameActive = false;
+  gameOverManager.show({
+    localPlayerId,
+    winnerId: data.winnerId,
+    winnerName: data.winnerName,
+  });
 });
 
 // 8. Faux Serveur : Gestion continue des déplacements en boucle de jeu
@@ -225,6 +339,19 @@ eventBus.on('USER_ACTION', (action: unknown) => {
 
   if (kbAction.type === 'MOVE_START') activeDirections.add(kbAction.payload.direction);
   if (kbAction.type === 'MOVE_END') activeDirections.delete(kbAction.payload.direction);
+});
+
+// 8b. [DEBUG MOCK] Touche G = déclencher manuellement un Game Over de test
+window.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'g' || e.key === 'G') {
+    if (!isGameActive || gameOverManager.isVisible()) return;
+    // Alterner victoire et défaite à chaque pression pour faciliter les tests
+    const isWin = Math.random() > 0.5;
+    eventBus.emit('GAME_OVER', {
+      winnerId: isWin ? localPlayerId || 'p1' : 'other-player-id',
+      winnerName: isWin ? currentPseudo : 'Bot Ennemi',
+    });
+  }
 });
 
 // 9. Boucle de jeu Mock (60 FPS)

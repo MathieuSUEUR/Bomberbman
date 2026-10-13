@@ -30,6 +30,13 @@ export class SocketManager {
           eventBus.emit('GAME_START', message.payload);
         } else if (message.type === 'GAME_STATE') {
           eventBus.emit('GAME_STATE_UPDATE', message.payload);
+        } else if (message.type === 'GAME_OVER') {
+          eventBus.emit('GAME_OVER', message.payload);
+        } else if (message.type === 'PLAYER_ELIMINATED') {
+          eventBus.emit('PLAYER_ELIMINATED', message.payload);
+        } else if (message.type === 'WELCOME') {
+          // Stocker l'identifiant de joueur local attribué par le serveur
+          eventBus.emit('WELCOME', message.payload);
         }
       } catch (err) {
         console.warn('Erreur de parsing du message WebSocket :', err);
