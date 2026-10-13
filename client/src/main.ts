@@ -3,6 +3,7 @@ import { GameRenderer } from './view/GameRenderer';
 import { GameOverManager } from './view/GameOverManager';
 import { HudManager } from './view/HudManager';
 import { eventBus } from './core/EventBus';
+import { calculateMovementDelta } from './core/movement';
 import { InputManager } from './core/InputManager';
 import { SocketManager } from './network/SocketManager';
 
@@ -263,10 +264,6 @@ eventBus.on('LOBBY_STATE', (payload: unknown) => {
 });
 
 eventBus.on('GAME_START', (payload: unknown) => {
-  const data = payload as { initialState?: unknown };
-  isGameActive = true;
-  showScreen('game');
-
   const data = payload as { initialState?: unknown; playerId?: string };
   isGameActive = true;
   // Mémoriser l'ID local reçu à la connexion (WELCOME) ou au GAME_START
@@ -328,25 +325,13 @@ setInterval(() => {
   const player = mockGameState.players[0];
   const speed = 0.08;
 
-  let newX = player.x;
-  let newY = player.y;
+  const { dx, dy, direction } = calculateMovementDelta(activeDirections, speed);
+  if (direction) {
+    player.direction = direction;
+  }
 
-  if (activeDirections.has('UP')) {
-    newY -= speed;
-    player.direction = 'UP';
-  }
-  if (activeDirections.has('DOWN')) {
-    newY += speed;
-    player.direction = 'DOWN';
-  }
-  if (activeDirections.has('LEFT')) {
-    newX -= speed;
-    player.direction = 'LEFT';
-  }
-  if (activeDirections.has('RIGHT')) {
-    newX += speed;
-    player.direction = 'RIGHT';
-  }
+  const newX = player.x + dx;
+  const newY = player.y + dy;
 
   const gridX = Math.round(newX);
   const gridY = Math.round(newY);
