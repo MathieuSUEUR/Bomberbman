@@ -6,7 +6,6 @@ import { eventBus } from './core/EventBus';
 import { InputManager } from './core/InputManager';
 import { SocketManager } from './network/SocketManager';
 
-// 1. Initialisation de l'affichage du Canvas
 // 1. Initialisation de l'affichage du Canvas et du HUD
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 canvas.width = 500;
@@ -185,41 +184,6 @@ btnBackMenu.addEventListener('click', () => {
   showScreen('menu');
 });
 
-});
-
-// Clic sur "Je suis prêt !" dans le salon d'attente
-btnReady.addEventListener('click', () => {
-  isPlayerReady = !isPlayerReady;
-  eventBus.emit('SET_READY', { isReady: isPlayerReady });
-
-  if (btnReadyText) {
-    btnReadyText.textContent = isPlayerReady ? 'Prêt ! (Annuler)' : 'Je suis prêt !';
-  }
-
-  if (currentPlayerStatus) {
-    currentPlayerStatus.className = `player-status-tag ${isPlayerReady ? 'ready' : 'waiting'}`;
-    currentPlayerStatus.textContent = isPlayerReady ? 'Prêt' : 'En attente';
-  }
-});
-
-// Clic sur "Lancer la partie" depuis le salon d'attente
-btnStartGame.addEventListener('click', () => {
-  startMockGame();
-});
-
-// Clic sur "Retour au menu" depuis le salon d'attente
-btnBackMenu.addEventListener('click', () => {
-  isPlayerReady = false;
-  if (btnReadyText) {
-    btnReadyText.textContent = 'Je suis prêt !';
-  }
-  if (currentPlayerStatus) {
-    currentPlayerStatus.className = 'player-status-tag waiting';
-    currentPlayerStatus.textContent = 'En attente';
-  }
-  showScreen('menu');
-});
-
 // Clic sur "Quitter la partie" depuis la zone de jeu
 if (btnLeaveGame) {
   btnLeaveGame.addEventListener('click', () => {
@@ -297,10 +261,6 @@ eventBus.on('LOBBY_STATE', (payload: unknown) => {
 });
 
 eventBus.on('GAME_START', (payload: unknown) => {
-  const data = payload as { initialState?: unknown };
-  isGameActive = true;
-  showScreen('game');
-
   const data = payload as { initialState?: unknown; playerId?: string };
   isGameActive = true;
   // Mémoriser l'ID local reçu à la connexion (WELCOME) ou au GAME_START

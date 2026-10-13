@@ -19,8 +19,6 @@ export enum PowerUpType {
   EXTRA_BOMB = 'EXTRA_BOMB',
   EXTRA_RANGE = 'EXTRA_RANGE',
   SPEED_UP = 'SPEED_UP',
-  REDUCED_BOMB_DELAY = 'REDUCED_BOMB_DELAY',
-  EXTRA_LIFE = 'EXTRA_LIFE',
 }
 
 //power-up
