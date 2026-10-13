@@ -664,3 +664,86 @@ kbd {
   background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   GAME OVER OVERLAY
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#gameover-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  animation: gameover-fade-in 0.4s ease both;
+}
+
+@keyframes gameover-fade-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.gameover-card {
+  background: rgba(18, 22, 30, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 48px 56px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow:
+    0 0 60px rgba(255, 85, 0, 0.18),
+    0 20px 60px rgba(0, 0, 0, 0.6);
+  max-width: 420px;
+  width: 90%;
+  animation: gameover-card-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes gameover-card-in {
+  from { opacity: 0; transform: translateY(40px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.gameover-icon {
+  font-size: 4rem;
+  line-height: 1;
+  animation: gameover-icon-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+  filter: drop-shadow(0 0 16px rgba(255, 120, 0, 0.5));
+}
+
+@keyframes gameover-icon-bounce {
+  from { opacity: 0; transform: scale(0.4) rotate(-15deg); }
+  to   { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+.gameover-title {
+  font-family: var(--font-retro);
+  font-size: 1.4rem;
+  color: var(--text-main);
+  background: linear-gradient(135deg, #ff5500, #ff9900);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.02em;
+}
+
+.gameover-subtitle {
+  font-family: var(--font-main);
+  font-size: 1rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.gameover-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
