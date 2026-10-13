@@ -222,4 +222,44 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
       expect(updatedLobby.payload.players[0].name).toBe('Player 1');
     }
   });
+
+  it('devrait diffuser GAME_OVER à tous les clients connectés lorsqu\'un joueur gagne la partie', async () => {
+    const client1 = await createClient();
+    const welcome1 = await client1.waitForMessage((m) => m.type === 'WELCOME');
+    const p1Id = welcome1.type === 'WELCOME' ? welcome1.payload.playerId : '';
+    client1.send({ type: 'JOIN', payload: { name: 'Player 1' } });
+    await client1.waitForMessage((m) => m.type === 'LOBBY_STATE');
+
+    const client2 = await createClient();
+    const welcome2 = await client2.waitForMessage((m) => m.type === 'WELCOME');
+    const p2Id = welcome2.type === 'WELCOME' ? welcome2.payload.playerId : '';
+    client2.send({ type: 'JOIN', payload: { name: 'Player 2' } });
+    await client1.waitForMessage((m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2);
+
+    client1.send({ type: 'READY', payload: { isReady: true } });
+    client2.send({ type: 'READY', payload: { isReady: true } });
+    await client1.waitForMessage((m) => m.type === 'GAME_START');
+
+    // On élimine p2 pour déclencher la condition de victoire de p1
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const internalPlayers = (engine as any).players as Map<string, any>;
+    internalPlayers.get(p2Id).isAlive = false;
+
+    // Déclenchement d'un tick pour que le GameEngine détecte la fin de partie
+    engine.tick();
+
+    // Les deux clients doivent recevoir GAME_OVER avec Player 1 désigné gagnant
+    const [gameOver1, gameOver2] = await Promise.all([
+      client1.waitForMessage((m) => m.type === 'GAME_OVER'),
+      client2.waitForMessage((m) => m.type === 'GAME_OVER')
+    ]);
+
+    expect(gameOver1.type).toBe('GAME_OVER');
+    expect(gameOver2.type).toBe('GAME_OVER');
+    if (gameOver1.type === 'GAME_OVER') {
+      expect(gameOver1.payload.winnerId).toBe(p1Id);
+      expect(gameOver1.payload.winnerName).toBe('Player 1');
+    }
+  });
 });
+
