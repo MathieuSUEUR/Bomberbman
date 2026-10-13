@@ -43,12 +43,24 @@ export class SocketManager {
       }
     };
 
-    eventBus.on('USER_ACTION', (message: unknown) => {
-      if (this.socket.readyState === WebSocket.OPEN) {
+    eventBus.on('USER_ACTION', (action: unknown) => {
+      const kbAction = action as { type: string; payload?: { direction?: string } };
+      
+      let actionType = '';
+      if (kbAction.type === 'MOVE_START' && kbAction.payload?.direction) {
+        actionType = `MOVE_START_${kbAction.payload.direction}`;
+      } else if (kbAction.type === 'MOVE_END' && kbAction.payload?.direction) {
+        actionType = `MOVE_END_${kbAction.payload.direction}`;
+      } else if (kbAction.type === 'PLACE_BOMB') {
+        actionType = 'PLACE_BOMB';
+      }
+
+      if (actionType && this.socket.readyState === WebSocket.OPEN) {
+        const message = { type: 'ACTION', payload: { actionType } };
         this.socket.send(JSON.stringify(message));
         console.info('📡 Envoyé au serveur:', message);
-      } else {
-        console.info("🔒 Impossible d'envoyer, serveur déconnecté:", message);
+      } else if (actionType) {
+        console.info("🔒 Impossible d'envoyer, serveur déconnecté:", kbAction);
       }
     });
 

@@ -33,6 +33,7 @@ export class GameEngine extends EventEmitter {
 
     private suddenDeathIndex: number = 0;
     private suddenDeathPositions: Position[] = [];
+    private activeDirections: Map<string, Set<Direction>>;
 
     constructor() {
         super();
@@ -44,6 +45,7 @@ export class GameEngine extends EventEmitter {
         this.powerUps = [];
         this.players = new Map();
         this.actionFile = [];
+        this.activeDirections = new Map();
         this.suddenDeathIndex = 0;
         this.suddenDeathPositions = this.generateSpiralPositions(DEFAULT_GAME_CONFIG.gridWidth, DEFAULT_GAME_CONFIG.gridHeight);
     }
@@ -86,6 +88,9 @@ export class GameEngine extends EventEmitter {
 
         this.processActions();
 
+        const tickResult = this.bombManager.tick(this.tickCount, this.map, this.players);
+
+        // Émettre les événements pour chaque bombe qui a explosé
         // Le ramassage passe avant les explosions : un bonus ne peut pas etre ramasse
         // sur une case ou le joueur vient de mourir
         const pickups = this.powerUpManager.collect(this.players, this.powerUps);
@@ -155,6 +160,7 @@ export class GameEngine extends EventEmitter {
                 maxBombs: 1,
                 bombStock: 1,
                 bombRange: 2,
+                speed: 0.15,
                 speed: 1,
                 nextMoveTick: 0,
                 lives: DEFAULT_GAME_CONFIG.startingLives,
@@ -163,6 +169,7 @@ export class GameEngine extends EventEmitter {
                 nextBombRechargeTick: null,
                 color: `player-${index + 1}`
             });
+            this.activeDirections.set(player.id, new Set());
         });
         this.status = 'IN_PROGRESS';
         this.startGameLoop();
@@ -172,6 +179,7 @@ export class GameEngine extends EventEmitter {
     public startGameLoop(): void {
         if (this.gameLoopInterval) return;
 
+        // Calcul de l'intervalle en ms (ex: tickRate 20 = 50ms)
         const tickIntervalMs = 1000 / DEFAULT_GAME_CONFIG.tickRate;
 
         this.gameLoopInterval = setInterval(() => {
@@ -181,7 +189,7 @@ export class GameEngine extends EventEmitter {
             }
         }, tickIntervalMs);
 
-        console.info(`GameEngine: boucle de jeu demarree (${DEFAULT_GAME_CONFIG.tickRate} ticks/s)`);
+        console.info(`GameEngine: boucle de jeu démarrée (${DEFAULT_GAME_CONFIG.tickRate} ticks/s)`);
     }
 
     /** Arrete la boucle de jeu. */
@@ -220,6 +228,7 @@ export class GameEngine extends EventEmitter {
             return;
         }
 
+        // On traite les actions (keydown / keyup / place bomb)
         // On traite les actions en attente
         while (this.actionFile.length > 0) {
             const action = this.actionFile.shift();
@@ -227,6 +236,9 @@ export class GameEngine extends EventEmitter {
 
             const player = this.players.get(action.playerId);
             if (!player || !player.isAlive) continue;
+
+            const dirs = this.activeDirections.get(player.id);
+            if (!dirs) continue;
 
             switch (action.actionType) {
                 case 'MOVE_UP':
@@ -248,6 +260,19 @@ export class GameEngine extends EventEmitter {
                     break;
             }
         }
+
+        // TODO:: ajouter le pick up des power-up
+
+        // Appliquer le mouvement en continu
+        for (const [playerId, player] of this.players.entries()) {
+            if (!player.isAlive) continue;
+            const dirs = this.activeDirections.get(playerId);
+            if (dirs) {
+                for (const direction of dirs) {
+                    this.handlePlayerMove(player, direction);
+                }
+            }
+        }
     }
 
     /**
@@ -267,6 +292,7 @@ export class GameEngine extends EventEmitter {
      * @param direction La direction demandée
      */
     private handlePlayerMove(player: PlayerState, direction: Direction): void {
+        this.movePlayerTo(player, direction);
         if (this.tickCount < player.nextMoveTick) return;
 
         // Le délai ne démarre que si le déplacement a réellement eu lieu
@@ -282,13 +308,15 @@ export class GameEngine extends EventEmitter {
      * @returns boolean True si le joueur peut se déplacer, false sinon
      */
     private canMoveTo(targetX: number, targetY: number): boolean {
+        const roundedX = Math.round(targetX);
+        const roundedY = Math.round(targetY);
 
         // si la case est un mur ou une bordure, on ne peut pas se déplacer
         if (this.map.get(targetX, targetY) !== CellType.EMPTY) return false;
 
         // si la case est déjà occupée par une bombe, on ne peut pas se déplacer
         const hasBomb = this.bombManager.getBombs().some(
-            b => b.position.x === targetX && b.position.y === targetY
+            b => b.position.x === roundedX && b.position.y === roundedY
         );
         if (hasBomb) return false;
 
@@ -344,8 +372,11 @@ export class GameEngine extends EventEmitter {
      * @param player Le joueur à vérifier
      */
     private checkPlayerExplosionCollision(player: PlayerState): void {
+        const roundedX = Math.round(player.position.x);
+        const roundedY = Math.round(player.position.y);
+
         const isInExplosion = this.bombManager.getExplosions().some(
-            exp => exp.position.x === player.position.x && exp.position.y === player.position.y
+            exp => exp.position.x === roundedX && exp.position.y === roundedY
         );
 
         if (isInExplosion) {
@@ -361,6 +392,23 @@ export class GameEngine extends EventEmitter {
      * @param player L'état du joueur
      */
     private playerPlaceBomb(player: PlayerState): void {
+        if (!player.isAlive) return;
+
+        const roundedX = Math.round(player.position.x);
+        const roundedY = Math.round(player.position.y);
+
+        // on vérifie que la case est bien vide
+        if (this.map.get(roundedX, roundedY) !== CellType.EMPTY) return;
+
+        // on vérifie qu'il n'y ait pas deja une bombe sur la case
+        if (this.bombManager.getBombs().some(bomb => bomb.position.x === roundedX && bomb.position.y === roundedY)) return;
+
+        // on vérifie que le joueur a encore des bombes disponibles
+        if (player.currentBombs >= player.maxBombs) return;
+
+        // on place la bombe
+        this.bombManager.placerBombe(player.id, roundedX, roundedY, player.bombRange, this.tickCount);
+        player.currentBombs++;
         this.bombManager.placerBombe(player, this.tickCount);
     }
 

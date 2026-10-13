@@ -46,8 +46,9 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
     it('devrait déplacer le joueur vers le bas (MOVE_DOWN) sur une case vide', () => {
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 1 });
       setCell(1, 2, CellType.EMPTY);
+      getInternalPlayers().get('p1')!.speed = 1;
 
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_DOWN' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_START_DOWN' });
       engine.tick();
 
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 2 });
@@ -56,8 +57,9 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
     it('devrait déplacer le joueur vers la droite (MOVE_RIGHT) sur une case vide', () => {
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 1 });
       setCell(2, 1, CellType.EMPTY);
+      getInternalPlayers().get('p1')!.speed = 1;
 
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_RIGHT' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_START_RIGHT' });
       engine.tick();
 
       expect(getPlayer('p1').position).toEqual({ x: 2, y: 1 });
@@ -66,9 +68,10 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
     it('devrait déplacer le joueur vers le haut (MOVE_UP) depuis une position intermédiaire', () => {
       const p1 = getInternalPlayers().get('p1')!;
       p1.position = { x: 1, y: 2 };
+      p1.speed = 1;
       setCell(1, 1, CellType.EMPTY);
 
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_UP' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_START_UP' });
       engine.tick();
 
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 1 });
@@ -77,9 +80,10 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
     it('devrait déplacer le joueur vers la gauche (MOVE_LEFT) depuis une position intermédiaire', () => {
       const p1 = getInternalPlayers().get('p1')!;
       p1.position = { x: 2, y: 1 };
+      p1.speed = 1;
       setCell(1, 1, CellType.EMPTY);
 
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_LEFT' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_START_LEFT' });
       engine.tick();
 
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 1 });
@@ -87,6 +91,7 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
 
     it('ne devrait pas déplacer le joueur contre un mur indestructible de bordure', () => {
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 1 });
+      getInternalPlayers().get('p1')!.speed = 1;
 
       engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_UP' });
       engine.tick();
@@ -100,8 +105,9 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
     it('ne devrait pas déplacer le joueur sur un mur destructible', () => {
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 1 });
       setCell(2, 1, CellType.DESTRUCTIBLE_WALL);
+      getInternalPlayers().get('p1')!.speed = 1;
 
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_RIGHT' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_START_RIGHT' });
       engine.tick();
 
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 1 });
@@ -113,7 +119,7 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
       setCell(1, 2, CellType.EMPTY);
       setCell(1, 3, CellType.EMPTY);
 
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_DOWN' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_START_DOWN' });
       engine.tick();
 
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 3 });
@@ -122,9 +128,10 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
     it('ne devrait pas déplacer un joueur éliminé (isAlive: false)', () => {
       const p1 = getInternalPlayers().get('p1')!;
       p1.isAlive = false;
+      p1.speed = 1;
       setCell(1, 2, CellType.EMPTY);
 
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_DOWN' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_START_DOWN' });
       engine.tick();
 
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 1 });
@@ -132,13 +139,13 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
 
     it('devrait ignorer silencieusement une action pour un joueur inexistant', () => {
       expect(() => {
-        engine.ajouterAction({ playerId: 'inconnu', actionType: 'MOVE_DOWN' });
+        engine.ajouterAction({ playerId: 'inconnu', actionType: 'MOVE_START_DOWN' });
         engine.tick();
       }).not.toThrow();
     });
 
     it('ne devrait pas bouger si la direction demandée est inconnue', () => {
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_TELEPORT' as unknown as 'MOVE_UP' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_TELEPORT' as unknown as 'MOVE_START_UP' });
       engine.tick();
 
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 1 });
@@ -203,12 +210,13 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
   });
 
   describe('Gestion de la file d actions (Intégration)', () => {
-    it('ne devrait autoriser qu un seul déplacement par joueur par tick', () => {
+    it('devrait autoriser le déplacement en diagonale si plusieurs touches sont enfoncées', () => {
       setCell(1, 2, CellType.EMPTY);
       setCell(2, 2, CellType.EMPTY);
+      getInternalPlayers().get('p1')!.speed = 1;
 
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_DOWN' });
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_RIGHT' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_START_DOWN' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_START_RIGHT' });
       engine.tick();
 
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 2 });
@@ -216,11 +224,14 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
 
     it('devrait vider la file après le tick et ne pas ré-exécuter les actions', () => {
       setCell(1, 2, CellType.EMPTY);
+      getInternalPlayers().get('p1')!.speed = 1;
 
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_DOWN' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_START_DOWN' });
       engine.tick();
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 2 });
 
+      // Deuxième tick, on arrête le mouvement
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_END_DOWN' });
       engine.tick();
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 2 });
     });
@@ -229,9 +240,12 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
       setCell(1, 2, CellType.EMPTY);
       const p2InitialPos = { ...getPlayer('p2').position };
       setCell(p2InitialPos.x, p2InitialPos.y + 1, CellType.EMPTY);
+      
+      getInternalPlayers().get('p1')!.speed = 1;
+      getInternalPlayers().get('p2')!.speed = 1;
 
-      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_DOWN' });
-      engine.ajouterAction({ playerId: 'p2', actionType: 'MOVE_DOWN' });
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_START_DOWN' });
+      engine.ajouterAction({ playerId: 'p2', actionType: 'MOVE_START_DOWN' });
       engine.tick();
 
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 2 });

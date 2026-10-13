@@ -41,5 +41,9 @@
   "dependencies": {
     "electron": "44.4.1",
     "vite": "8.3.0"
+  },
+  "allowScripts": {
+    "electron-winstaller@5.4.0": true,
+    "esbuild@0.28.2": true
   }
 }

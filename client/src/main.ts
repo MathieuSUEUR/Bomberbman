@@ -60,6 +60,7 @@ let currentPseudo = 'Joueur 1';
 let localPlayerId = '';
 let isPlayerReady = false;
 let isGameActive = false;
+let isMockGame = false;
 
 type ScreenType = 'menu' | 'lobby' | 'game';
 
@@ -112,6 +113,7 @@ const mockGameState = {
 
 function startMockGame(): void {
   isGameActive = true;
+  isMockGame = true;
   showScreen('game');
 
   // Réinitialiser la position du joueur test
@@ -266,6 +268,8 @@ eventBus.on('LOBBY_STATE', (payload: unknown) => {
 eventBus.on('GAME_START', (payload: unknown) => {
   const data = payload as { initialState?: unknown; playerId?: string };
   isGameActive = true;
+  isMockGame = false;
+
   // Mémoriser l'ID local reçu à la connexion (WELCOME) ou au GAME_START
   if (data?.playerId) localPlayerId = data.playerId;
   showScreen('game');
@@ -319,7 +323,7 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
 
 // 9. Boucle de jeu Mock (60 FPS)
 setInterval(() => {
-  if (!isGameActive) return;
+  if (!isGameActive || !isMockGame) return;
   if (activeDirections.size === 0) return;
 
   const player = mockGameState.players[0];
