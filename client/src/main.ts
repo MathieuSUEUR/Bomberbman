@@ -60,6 +60,7 @@ let currentPseudo = 'Joueur 1';
 let localPlayerId = '';
 let isPlayerReady = false;
 let isGameActive = false;
+let isMockMode = false;
 
 type ScreenType = 'menu' | 'lobby' | 'game';
 
@@ -77,6 +78,7 @@ const gameOverManager = new GameOverManager(
   // Callback "Rejouer" : retour au lobby
   () => {
     isGameActive = false;
+    isMockMode = false;
     isPlayerReady = false;
     if (btnReadyText) btnReadyText.textContent = 'Je suis prêt !';
     if (currentPlayerStatus) {
@@ -88,6 +90,7 @@ const gameOverManager = new GameOverManager(
   // Callback "Menu principal"
   () => {
     isGameActive = false;
+    isMockMode = false;
     showScreen('menu');
   },
 );
@@ -112,6 +115,7 @@ const mockGameState = {
 
 function startMockGame(): void {
   isGameActive = true;
+  isMockMode = true;
   showScreen('game');
 
   // Réinitialiser la position du joueur test
@@ -136,6 +140,7 @@ function startMockGame(): void {
 btnJoinGame.addEventListener('click', () => {
   const enteredName = playerNameInput?.value.trim();
   currentPseudo = enteredName && enteredName.length > 0 ? enteredName : 'Joueur 1';
+  isMockMode = false;
 
   if (currentPlayerLabel) {
     currentPlayerLabel.textContent = `${currentPseudo} (Toi)`;
@@ -170,12 +175,17 @@ btnReady.addEventListener('click', () => {
 
 // Clic sur "Lancer la partie" depuis le salon d'attente
 btnStartGame.addEventListener('click', () => {
-  startMockGame();
+  // En multijoueur, le jeu démarre via l'événement GAME_START du serveur quand tous les joueurs sont prêts.
+  // Si le serveur est hors-ligne, on permet de tester en local.
+  if (serverStatusDot && serverStatusDot.classList.contains('offline')) {
+    startMockGame();
+  }
 });
 
 // Clic sur "Retour au menu" depuis le salon d'attente
 btnBackMenu.addEventListener('click', () => {
   isPlayerReady = false;
+  isMockMode = false;
   if (btnReadyText) {
     btnReadyText.textContent = 'Je suis prêt !';
   }
@@ -191,6 +201,7 @@ btnBackMenu.addEventListener('click', () => {
 if (btnLeaveGame) {
   btnLeaveGame.addEventListener('click', () => {
     isGameActive = false;
+    isMockMode = false;
     gameOverManager.hide();
     eventBus.emit('HUD_TIMER_STOP');
     showScreen('menu');
@@ -266,6 +277,7 @@ eventBus.on('LOBBY_STATE', (payload: unknown) => {
 eventBus.on('GAME_START', (payload: unknown) => {
   const data = payload as { initialState?: unknown; playerId?: string };
   isGameActive = true;
+  isMockMode = false;
   // Mémoriser l'ID local reçu à la connexion (WELCOME) ou au GAME_START
   if (data?.playerId) localPlayerId = data.playerId;
   showScreen('game');
@@ -287,6 +299,7 @@ interface GameOverPayload {
 eventBus.on('GAME_OVER', (payload: unknown) => {
   const data = payload as GameOverPayload;
   isGameActive = false;
+  isMockMode = false;
   gameOverManager.show({
     localPlayerId,
     winnerId: data.winnerId,
@@ -317,9 +330,9 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
   }
 });
 
-// 9. Boucle de jeu Mock (60 FPS)
+// 9. Boucle de jeu Mock (60 FPS - uniquement active en mode Entraînement Solo)
 setInterval(() => {
-  if (!isGameActive) return;
+  if (!isGameActive || !isMockMode) return;
   if (activeDirections.size === 0) return;
 
   const player = mockGameState.players[0];
