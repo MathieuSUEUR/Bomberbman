@@ -1,5 +1,6 @@
 import floorSrc from '../assets/sprites/floor.png';
 import grassSrc from '../assets/sprites/grass.png';
+import wallSrc from '../assets/sprites/wall.png';
 import playerSrc from '../assets/sprites/sprite-sheet.png';
 import { eventBus } from '../core/EventBus';
 import type { GameState, PlayerState, CellType } from '@bomberman/shared';
@@ -28,6 +29,7 @@ export class GameRenderer {
   private tileSize = 50;
   private floorImg: HTMLImageElement;
   private grassImg: HTMLImageElement;
+  private wallImg: HTMLImageElement;
   private playerImg: HTMLImageElement;
 
   /** ID du joueur local (reçu via WELCOME du serveur) pour le mettre en avant */
@@ -42,6 +44,9 @@ export class GameRenderer {
 
     this.grassImg = new Image();
     this.grassImg.src = grassSrc;
+
+    this.wallImg = new Image();
+    this.wallImg.src = wallSrc;
 
     this.playerImg = new Image();
     this.playerImg.src = playerSrc;
@@ -122,13 +127,10 @@ export class GameRenderer {
         // Sol partout
         this.ctx.drawImage(this.floorImg, px, py, this.tileSize, this.tileSize);
 
-        if (cell === CELL_INDESTRUCTIBLE || cell === CELL_DESTRUCTIBLE) {
-          // Mur (indestructible = herbe pleine, destructible = herbe légèrement transparente)
-          if (cell === CELL_DESTRUCTIBLE) {
-            this.ctx.globalAlpha = 0.75;
-          }
+        if (cell === CELL_INDESTRUCTIBLE) {
           this.ctx.drawImage(this.grassImg, px, py, this.tileSize, this.tileSize);
-          this.ctx.globalAlpha = 1;
+        } else if (cell === CELL_DESTRUCTIBLE) {
+          this.ctx.drawImage(this.wallImg, px, py, this.tileSize, this.tileSize);
         } else if (cell === CELL_EMPTY) {
           // Juste le sol, déjà dessiné
         }
@@ -286,6 +288,8 @@ export class GameRenderer {
         this.ctx.drawImage(this.floorImg, px, py, this.tileSize, this.tileSize);
         if (state.grid[y][x] === 1) {
           this.ctx.drawImage(this.grassImg, px, py, this.tileSize, this.tileSize);
+        } else if (state.grid[y][x] === 2) {
+          this.ctx.drawImage(this.wallImg, px, py, this.tileSize, this.tileSize);
         }
       }
     }
