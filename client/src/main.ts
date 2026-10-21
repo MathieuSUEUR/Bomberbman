@@ -43,7 +43,6 @@ const btnStartMock = document.getElementById('btn-start-mock')!;
 
 const btnReady = document.getElementById('btn-ready')!;
 const btnReadyText = document.getElementById('btn-ready-text');
-const btnStartGame = document.getElementById('btn-start-game')!;
 const btnBackMenu = document.getElementById('btn-back-menu')!;
 const btnLeaveGame = document.getElementById('btn-leave-game');
 
@@ -173,14 +172,6 @@ btnReady.addEventListener('click', () => {
   }
 });
 
-// Clic sur "Lancer la partie" depuis le salon d'attente
-btnStartGame.addEventListener('click', () => {
-  // En multijoueur, le jeu démarre via l'événement GAME_START du serveur quand tous les joueurs sont prêts.
-  // Si le serveur est hors-ligne, on permet de tester en local.
-  if (serverStatusDot && serverStatusDot.classList.contains('offline')) {
-    startMockGame();
-  }
-});
 
 // Clic sur "Retour au menu" depuis le salon d'attente
 btnBackMenu.addEventListener('click', () => {
