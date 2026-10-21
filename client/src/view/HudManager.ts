@@ -174,6 +174,10 @@ export class HudManager {
       this.resetTimer(data?.seconds ?? 0);
     });
 
+    eventBus.on('GAME_OVER', () => {
+      this.stopTimer();
+    });
+
     // Écoute de l'état de jeu pour synchroniser les informations quand disponibles
     eventBus.on('GAME_STATE_UPDATE', (payload: unknown) => {
       this.handleGameState(payload);
@@ -260,6 +264,9 @@ export class HudManager {
   public startTimer(): void {
     if (this.isTimerRunning) return;
     this.isTimerRunning = true;
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+    }
     this.timerInterval = setInterval(() => {
       this.setTimer(this.timerSeconds + 1);
     }, 1000);
@@ -275,6 +282,14 @@ export class HudManager {
 
   public resetTimer(seconds = 0): void {
     this.setTimer(seconds);
+    if (this.isTimerRunning) {
+      if (this.timerInterval) {
+        clearInterval(this.timerInterval);
+      }
+      this.timerInterval = setInterval(() => {
+        this.setTimer(this.timerSeconds + 1);
+      }, 1000);
+    }
   }
 
   public setScore(score: number): void {
