@@ -66,10 +66,10 @@ const serverStatusText = document.getElementById('server-status-text');
 // 4. État de l'interface
 // ──────────────────────────────────────────────────────────────────────────
 
-let currentPseudo = 'Joueur 1';
 let localPlayerId = '';
 // je met ça pour empêcher l'erreur du linter de m*rd*
-localPlayerId;
+let currentPseudo = localPlayerId
+currentPseudo = 'Joueur 1';
 let isPlayerReady = false;
 let isGameActive = false;
 let isMockMode = false; // true = mode solo/entraînement, false = mode réseau
