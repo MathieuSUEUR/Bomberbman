@@ -115,6 +115,16 @@ describe('HudManager - Tests de la logique et du state', () => {
     expect(hud.getHudData().timerSeconds).toBe(10);
   });
 
+  it('devrait arrêter le timer lors de l émission de GAME_OVER', () => {
+    hud.startTimer();
+    vi.advanceTimersByTime(2000);
+    expect(hud.getHudData().timerSeconds).toBe(2);
+
+    eventBus.emit('GAME_OVER', { winnerId: 'p1' });
+    vi.advanceTimersByTime(3000);
+    expect(hud.getHudData().timerSeconds).toBe(2);
+  });
+
   it('devrait mettre à jour le score manuellement et via EventBus', () => {
     hud.setScore(150);
     expect(hud.getHudData().score).toBe(150);

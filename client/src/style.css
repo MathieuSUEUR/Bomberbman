@@ -894,12 +894,16 @@ kbd {
   padding-top: 6px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   animation: fadeInUp 0.4s ease-out 0.45s both;
+}
+
+/* ================================================= */
 /* 4. Barre HUD (Heads-Up Display) au-dessus du jeu */
 /* ================================================= */
 
 .game-hud-bar {
   width: 500px;
   display: flex;
+  flex-direction: row;
   justify-content: space-between;
   align-items: center;
   gap: 8px;

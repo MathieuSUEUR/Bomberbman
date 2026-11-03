@@ -43,7 +43,6 @@ const btnStartMock = document.getElementById('btn-start-mock')!;
 
 const btnReady = document.getElementById('btn-ready')!;
 const btnReadyText = document.getElementById('btn-ready-text');
-const btnStartGame = document.getElementById('btn-start-game')!;
 const btnBackMenu = document.getElementById('btn-back-menu')!;
 const btnLeaveGame = document.getElementById('btn-leave-game');
 
@@ -61,6 +60,7 @@ let localPlayerId = '';
 let isPlayerReady = false;
 let isGameActive = false;
 let isMockMode = false;
+let lastGameWasMock = false;
 
 type ScreenType = 'menu' | 'lobby' | 'game';
 
@@ -75,22 +75,31 @@ function showScreen(screen: ScreenType): void {
 
 // 4b. Instanciation du gestionnaire de la modale Game Over
 const gameOverManager = new GameOverManager(
-  // Callback "Rejouer" : retour au lobby
+  // Callback "Rejouer" : relance le mode mock ou retourne au lobby en multijoueur
   () => {
     isGameActive = false;
-    isMockMode = false;
-    isPlayerReady = false;
-    if (btnReadyText) btnReadyText.textContent = 'Je suis prêt !';
-    if (currentPlayerStatus) {
-      currentPlayerStatus.className = 'player-status-tag waiting';
-      currentPlayerStatus.textContent = 'En attente';
+    eventBus.emit('HUD_TIMER_STOP');
+    if (lastGameWasMock) {
+      startMockGame();
+    } else {
+      isMockMode = false;
+      isPlayerReady = false;
+      if (btnReadyText) btnReadyText.textContent = 'Je suis prêt !';
+      if (currentPlayerStatus) {
+        currentPlayerStatus.className = 'player-status-tag waiting';
+        currentPlayerStatus.textContent = 'En attente';
+      }
+      eventBus.emit('SET_READY', { isReady: false });
+      eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
+      showScreen('lobby');
     }
-    showScreen('lobby');
   },
   // Callback "Menu principal"
   () => {
     isGameActive = false;
     isMockMode = false;
+    eventBus.emit('HUD_TIMER_STOP');
+    eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
     showScreen('menu');
   },
 );
@@ -102,20 +111,25 @@ function escapeHtml(str: string): string {
 }
 
 // 5. État global du faux serveur (Mock) pour le test local
+const INITIAL_MOCK_GRID = [
+  [1, 1, 1, 1, 1, 1, 1],
+  [1, 0, 0, 2, 0, 0, 1],
+  [1, 0, 1, 2, 1, 0, 1],
+  [1, 0, 0, 0, 0, 0, 1],
+  [1, 1, 1, 1, 1, 1, 1],
+];
+
 const mockGameState = {
-  grid: [
-    [1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1],
-  ],
+  grid: INITIAL_MOCK_GRID.map((row) => [...row]),
   players: [{ id: 'p1', x: 1, y: 1, direction: 'DOWN' }],
 };
 
 function startMockGame(): void {
   isGameActive = true;
   isMockMode = true;
+  lastGameWasMock = true;
+  activeDirections.clear();
+  mockGameState.grid = INITIAL_MOCK_GRID.map((row) => [...row]);
   showScreen('game');
 
   // Réinitialiser la position du joueur test
@@ -173,14 +187,6 @@ btnReady.addEventListener('click', () => {
   }
 });
 
-// Clic sur "Lancer la partie" depuis le salon d'attente
-btnStartGame.addEventListener('click', () => {
-  // En multijoueur, le jeu démarre via l'événement GAME_START du serveur quand tous les joueurs sont prêts.
-  // Si le serveur est hors-ligne, on permet de tester en local.
-  if (serverStatusDot && serverStatusDot.classList.contains('offline')) {
-    startMockGame();
-  }
-});
 
 // Clic sur "Retour au menu" depuis le salon d'attente
 btnBackMenu.addEventListener('click', () => {
@@ -193,9 +199,11 @@ btnBackMenu.addEventListener('click', () => {
     currentPlayerStatus.className = 'player-status-tag waiting';
     currentPlayerStatus.textContent = 'En attente';
   }
+  eventBus.emit('SET_READY', { isReady: false });
+  eventBus.emit('HUD_TIMER_STOP');
+  eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
   showScreen('menu');
 });
-
 
 // Clic sur "Quitter la partie" depuis la zone de jeu
 if (btnLeaveGame) {
@@ -203,7 +211,9 @@ if (btnLeaveGame) {
     isGameActive = false;
     isMockMode = false;
     gameOverManager.hide();
+    eventBus.emit('SET_READY', { isReady: false });
     eventBus.emit('HUD_TIMER_STOP');
+    eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
     showScreen('menu');
   });
 }
@@ -278,6 +288,8 @@ eventBus.on('GAME_START', (payload: unknown) => {
   const data = payload as { initialState?: unknown; playerId?: string };
   isGameActive = true;
   isMockMode = false;
+  lastGameWasMock = false;
+  activeDirections.clear();
   // Mémoriser l'ID local reçu à la connexion (WELCOME) ou au GAME_START
   if (data?.playerId) localPlayerId = data.playerId;
   showScreen('game');
@@ -299,7 +311,7 @@ interface GameOverPayload {
 eventBus.on('GAME_OVER', (payload: unknown) => {
   const data = payload as GameOverPayload;
   isGameActive = false;
-  isMockMode = false;
+  eventBus.emit('HUD_TIMER_STOP');
   gameOverManager.show({
     localPlayerId,
     winnerId: data.winnerId,
