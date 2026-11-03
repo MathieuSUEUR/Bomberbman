@@ -3,13 +3,12 @@ import { GameRenderer } from './view/GameRenderer';
 import { GameOverManager } from './view/GameOverManager';
 import { HudManager } from './view/HudManager';
 import { eventBus } from './core/EventBus';
+import { calculateMovementDelta } from './core/movement';
 import { InputManager } from './core/InputManager';
 import { SocketManager } from './network/SocketManager';
 
-// ──────────────────────────────────────────────────────────────────────────
-// 1. Initialisation du Canvas et du HUD
-// ──────────────────────────────────────────────────────────────────────────
-
+// 1. Initialisation de l'affichage du Canvas
+// 1. Initialisation de l'affichage du Canvas et du HUD
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 canvas.width = 500;
 canvas.height = 500;
@@ -28,17 +27,11 @@ export const hudManager = new HudManager(
   },
 );
 
-// ──────────────────────────────────────────────────────────────────────────
 // 2. Initialisation du clavier et de la connexion WebSocket
-// ──────────────────────────────────────────────────────────────────────────
-
 new InputManager();
-const socketManager = new SocketManager('ws://localhost:3000');
+new SocketManager('ws://localhost:3000'); // Port 3000 par défaut
 
-// ──────────────────────────────────────────────────────────────────────────
-// 3. Récupération des éléments du DOM
-// ──────────────────────────────────────────────────────────────────────────
-
+// 3. Récupération des éléments HTML du DOM
 const mainMenu = document.getElementById('main-menu')!;
 const lobbyScreen = document.getElementById('lobby-screen')!;
 const gameContainer = document.getElementById('game-container')!;
@@ -50,7 +43,6 @@ const btnStartMock = document.getElementById('btn-start-mock')!;
 
 const btnReady = document.getElementById('btn-ready')!;
 const btnReadyText = document.getElementById('btn-ready-text');
-const btnStartGame = document.getElementById('btn-start-game')!;
 const btnBackMenu = document.getElementById('btn-back-menu')!;
 const btnLeaveGame = document.getElementById('btn-leave-game');
 
@@ -62,52 +54,52 @@ const currentPlayerStatus = document.getElementById('current-player-status');
 const serverStatusDot = document.getElementById('server-status-dot');
 const serverStatusText = document.getElementById('server-status-text');
 
-// ──────────────────────────────────────────────────────────────────────────
-// 4. État de l'interface
-// ──────────────────────────────────────────────────────────────────────────
-
+// 4. Gestion de l'état de l'interface
 let currentPseudo = 'Joueur 1';
 let localPlayerId = '';
 let isPlayerReady = false;
 let isGameActive = false;
-let isMockMode = false; // true = mode solo/entraînement, false = mode réseau
+let isMockMode = false;
+let lastGameWasMock = false;
 
-type ScreenType = 'menu' | 'lobby' | 'game' | 'gameover';
+type ScreenType = 'menu' | 'lobby' | 'game';
 
 function showScreen(screen: ScreenType): void {
   mainMenu.style.display = screen === 'menu' ? 'flex' : 'none';
   lobbyScreen.style.display = screen === 'lobby' ? 'flex' : 'none';
-
   if (gameContainer) {
-    gameContainer.style.display = screen === 'game' || screen === 'gameover' ? 'flex' : 'none';
+    gameContainer.style.display = screen === 'game' ? 'flex' : 'none';
   }
   gameCanvas.style.display = screen === 'game' ? 'block' : 'none';
-
-  // Masquer/afficher l'écran de fin de partie
-  const existingGameOver = document.getElementById('gameover-overlay');
-  if (existingGameOver) {
-    existingGameOver.style.display = screen === 'gameover' ? 'flex' : 'none';
-  }
 }
 
 // 4b. Instanciation du gestionnaire de la modale Game Over
 const gameOverManager = new GameOverManager(
-  // Callback "Rejouer" : retour au lobby
+  // Callback "Rejouer" : relance le mode mock ou retourne au lobby en multijoueur
   () => {
     isGameActive = false;
-    isMockMode = false;
-    isPlayerReady = false;
-    if (btnReadyText) btnReadyText.textContent = 'Je suis prêt !';
-    if (currentPlayerStatus) {
-      currentPlayerStatus.className = 'player-status-tag waiting';
-      currentPlayerStatus.textContent = 'En attente';
+    eventBus.emit('HUD_TIMER_STOP');
+    if (lastGameWasMock) {
+      startMockGame();
+    } else {
+      isMockMode = false;
+      isPlayerReady = false;
+      if (btnReadyText) btnReadyText.textContent = 'Je suis prêt !';
+      if (currentPlayerStatus) {
+        currentPlayerStatus.className = 'player-status-tag waiting';
+        currentPlayerStatus.textContent = 'En attente';
+      }
+      eventBus.emit('SET_READY', { isReady: false });
+      eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
+      showScreen('lobby');
     }
-    showScreen('lobby');
   },
   // Callback "Menu principal"
   () => {
     isGameActive = false;
     isMockMode = false;
+    eventBus.emit('HUD_TIMER_STOP');
+    eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
     showScreen('menu');
   },
 );
@@ -118,154 +110,47 @@ function escapeHtml(str: string): string {
   return div.innerHTML;
 }
 
-// ──────────────────────────────────────────────────────────────────────────
-// 5. Écran de fin de partie (Game Over)
-// ──────────────────────────────────────────────────────────────────────────
-
-function createGameOverOverlay(): HTMLElement {
-  const overlay = document.createElement('div');
-  overlay.id = 'gameover-overlay';
-  overlay.innerHTML = `
-    <div class="gameover-card">
-      <div class="gameover-icon" id="gameover-icon">💥</div>
-      <h2 class="gameover-title" id="gameover-title">Partie terminée !</h2>
-      <p class="gameover-subtitle" id="gameover-subtitle"></p>
-      <div class="gameover-actions">
-        <button id="btn-gameover-menu" class="btn btn-primary">
-          <span class="btn-icon">🏠</span>
-          <span class="btn-text">Retour au menu</span>
-        </button>
-      </div>
-    </div>
-  `;
-
-  gameContainer.appendChild(overlay);
-
-  document.getElementById('btn-gameover-menu')!.addEventListener('click', () => {
-    isGameActive = false;
-    isMockMode = false;
-    isPlayerReady = false;
-    eventBus.emit('HUD_TIMER_STOP');
-    showScreen('menu');
-  });
-
-  return overlay;
-}
-
-/**
- * Affiche l'écran de fin de partie.
- * @param winnerId - L'ID du gagnant (null = égalité)
- * @param winnerName - Le nom du gagnant
- */
-function showGameOver(winnerId: string | null, winnerName?: string | null): void {
-  isGameActive = false;
-  eventBus.emit('HUD_TIMER_STOP');
-
-  let overlay = document.getElementById('gameover-overlay');
-  if (!overlay) {
-    overlay = createGameOverOverlay();
-  }
-
-  const icon = document.getElementById('gameover-icon')!;
-  const title = document.getElementById('gameover-title')!;
-  const subtitle = document.getElementById('gameover-subtitle')!;
-
-  const currentLocalId = localPlayerId || socketManager.getPlayerId();
-
-  if (!winnerId) {
-    // Égalité
-    icon.textContent = '🤝';
-    title.textContent = 'Égalité !';
-    subtitle.textContent = 'Personne ne remporte la partie.';
-  } else if (currentLocalId && winnerId === currentLocalId) {
-    // Le joueur local a gagné
-    icon.textContent = '🏆';
-    title.textContent = 'Victoire !';
-    subtitle.textContent = winnerName ? `${winnerName} remporte la partie !` : 'Tu as gagné !';
-  } else {
-    // Un autre joueur a gagné
-    icon.textContent = '💀';
-    title.textContent = 'Défaite…';
-    subtitle.textContent = winnerName ? `${winnerName} remporte la partie.` : 'Tu as perdu.';
-  }
-
-  overlay.style.display = 'flex';
-  gameContainer.style.display = 'flex';
-  gameCanvas.style.display = 'none';
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// 6. Mode Entraînement (Mock / Solo)
-// ──────────────────────────────────────────────────────────────────────────
+// 5. État global du faux serveur (Mock) pour le test local
+const INITIAL_MOCK_GRID = [
+  [1, 1, 1, 1, 1, 1, 1],
+  [1, 0, 0, 2, 0, 0, 1],
+  [1, 0, 1, 2, 1, 0, 1],
+  [1, 0, 0, 0, 0, 0, 1],
+  [1, 1, 1, 1, 1, 1, 1],
+];
 
 const mockGameState = {
-  grid: [
-    [1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1],
-  ],
+  grid: INITIAL_MOCK_GRID.map((row) => [...row]),
   players: [{ id: 'p1', x: 1, y: 1, direction: 'DOWN' }],
 };
 
 function startMockGame(): void {
-  isMockMode = true;
   isGameActive = true;
   isMockMode = true;
+  lastGameWasMock = true;
+  activeDirections.clear();
+  mockGameState.grid = INITIAL_MOCK_GRID.map((row) => [...row]);
   showScreen('game');
 
+  // Réinitialiser la position du joueur test
   mockGameState.players[0].x = 1;
   mockGameState.players[0].y = 1;
   mockGameState.players[0].direction = 'DOWN';
 
+  // Réinitialisation du HUD pour la nouvelle partie
   eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
   eventBus.emit('HUD_TIMER_START');
   eventBus.emit('HUD_UPDATE_BOMBS', { available: 1, max: 1 });
   eventBus.emit('HUD_UPDATE_SCORE', { score: 0 });
   eventBus.emit('HUD_UPDATE_LIVES', { lives: 3, maxLives: 3 });
+
+  // Émettre le premier état de jeu
   eventBus.emit('GAME_STATE_UPDATE', mockGameState);
 }
 
-// Boucle de jeu mock (60 FPS, uniquement en mode solo)
-const activeDirectionsMock = new Set<string>();
+// 6. Événements des boutons de navigation
 
-eventBus.on('USER_ACTION', (action: unknown) => {
-  if (!isMockMode) return; // En mode réseau, les actions sont gérées par le SocketManager
-
-  const kbAction = action as { type: string; payload: { direction: string } };
-  if (kbAction.type === 'MOVE_START') activeDirectionsMock.add(kbAction.payload.direction);
-  if (kbAction.type === 'MOVE_END') activeDirectionsMock.delete(kbAction.payload.direction);
-});
-
-setInterval(() => {
-  if (!isGameActive || !isMockMode) return;
-  if (activeDirectionsMock.size === 0) return;
-
-  const player = mockGameState.players[0];
-  const speed = 0.08;
-  let newX = player.x;
-  let newY = player.y;
-
-  if (activeDirectionsMock.has('UP')) { newY -= speed; player.direction = 'UP'; }
-  if (activeDirectionsMock.has('DOWN')) { newY += speed; player.direction = 'DOWN'; }
-  if (activeDirectionsMock.has('LEFT')) { newX -= speed; player.direction = 'LEFT'; }
-  if (activeDirectionsMock.has('RIGHT')) { newX += speed; player.direction = 'RIGHT'; }
-
-  const gridX = Math.round(newX);
-  const gridY = Math.round(newY);
-
-  if (mockGameState.grid[gridY] && mockGameState.grid[gridY][gridX] === 0) {
-    player.x = newX;
-    player.y = newY;
-    eventBus.emit('GAME_STATE_UPDATE', mockGameState);
-  }
-}, 1000 / 60);
-
-// ──────────────────────────────────────────────────────────────────────────
-// 7. Événements des boutons de navigation
-// ──────────────────────────────────────────────────────────────────────────
-
+// Clic sur "Rejoindre une partie" depuis l'écran d'accueil
 btnJoinGame.addEventListener('click', () => {
   const enteredName = playerNameInput?.value.trim();
   currentPseudo = enteredName && enteredName.length > 0 ? enteredName : 'Joueur 1';
@@ -275,16 +160,19 @@ btnJoinGame.addEventListener('click', () => {
     currentPlayerLabel.textContent = `${currentPseudo} (Toi)`;
   }
 
-  // Envoyer JOIN au serveur via l'eventBus → SocketManager
+  // Notifier le serveur WebSocket de l'arrivée du joueur
   eventBus.emit('JOIN_LOBBY', { name: currentPseudo });
 
+  // Affichage du salon d'attente
   showScreen('lobby');
 });
 
+// Clic sur "Mode Entraînement (Test Solo)" depuis l'écran d'accueil
 btnStartMock.addEventListener('click', () => {
   startMockGame();
 });
 
+// Clic sur "Je suis prêt !" dans le salon d'attente
 btnReady.addEventListener('click', () => {
   isPlayerReady = !isPlayerReady;
   eventBus.emit('SET_READY', { isReady: isPlayerReady });
@@ -299,20 +187,8 @@ btnReady.addEventListener('click', () => {
   }
 });
 
-// Bouton "Lancer la partie" : uniquement pour les tests locaux ou si le serveur est indisponible
-btnStartGame.addEventListener('click', () => {
-  if (!socketManager.isConnected()) {
-    // Fallback : mode mock si le serveur est déconnecté
-    startMockGame();
-  }
-  // Sinon, la partie démarre automatiquement quand tous les joueurs sont prêts (GAME_START)
-  // En multijoueur, le jeu démarre via l'événement GAME_START du serveur quand tous les joueurs sont prêts.
-  // Si le serveur est hors-ligne, on permet de tester en local.
-  if (serverStatusDot && serverStatusDot.classList.contains('offline')) {
-    startMockGame();
-  }
-});
 
+// Clic sur "Retour au menu" depuis le salon d'attente
 btnBackMenu.addEventListener('click', () => {
   isPlayerReady = false;
   isMockMode = false;
@@ -323,9 +199,11 @@ btnBackMenu.addEventListener('click', () => {
     currentPlayerStatus.className = 'player-status-tag waiting';
     currentPlayerStatus.textContent = 'En attente';
   }
+  eventBus.emit('SET_READY', { isReady: false });
+  eventBus.emit('HUD_TIMER_STOP');
+  eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
   showScreen('menu');
 });
-
 
 // Clic sur "Quitter la partie" depuis la zone de jeu
 if (btnLeaveGame) {
@@ -333,16 +211,15 @@ if (btnLeaveGame) {
     isGameActive = false;
     isMockMode = false;
     gameOverManager.hide();
+    eventBus.emit('SET_READY', { isReady: false });
     eventBus.emit('HUD_TIMER_STOP');
+    eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
     showScreen('menu');
   });
 }
 
-// ──────────────────────────────────────────────────────────────────────────
-// 8. Événements réseau (serveur → UI)
-// ──────────────────────────────────────────────────────────────────────────
+// 7. Écouteurs d'événements réseau
 
-// Statut de la connexion serveur
 eventBus.on('SERVER_STATUS', (status: unknown) => {
   const { connected } = status as { connected: boolean };
   if (serverStatusDot && serverStatusText) {
@@ -356,7 +233,6 @@ eventBus.on('SERVER_STATUS', (status: unknown) => {
   }
 });
 
-// État du lobby : mise à jour de la liste des joueurs
 // Réception de l'ID joueur local attribué par le serveur dès la connexion
 eventBus.on('WELCOME', (payload: unknown) => {
   const data = payload as { playerId: string };
@@ -393,7 +269,7 @@ eventBus.on('LOBBY_STATE', (payload: unknown) => {
   if (playersList) {
     playersList.innerHTML = '';
     data.players.forEach((p) => {
-      const isCurrent = p.name === currentPseudo;
+      const isCurrent = localPlayerId ? p.id === localPlayerId : p.name === currentPseudo;
       const li = document.createElement('li');
       li.className = `player-item ${isCurrent ? 'current-player' : ''}`;
       li.innerHTML = `
@@ -408,54 +284,89 @@ eventBus.on('LOBBY_STATE', (payload: unknown) => {
   }
 });
 
-// Démarrage de la partie par le serveur
 eventBus.on('GAME_START', (payload: unknown) => {
   const data = payload as { initialState?: unknown; playerId?: string };
   isGameActive = true;
   isMockMode = false;
+  lastGameWasMock = false;
+  activeDirections.clear();
   // Mémoriser l'ID local reçu à la connexion (WELCOME) ou au GAME_START
   if (data?.playerId) localPlayerId = data.playerId;
   showScreen('game');
 
-  // Réinitialiser le HUD
   eventBus.emit('HUD_TIMER_RESET', { seconds: 0 });
   eventBus.emit('HUD_TIMER_START');
-  eventBus.emit('HUD_UPDATE_BOMBS', { available: 1, max: 1 });
-  eventBus.emit('HUD_UPDATE_SCORE', { score: 0 });
-  eventBus.emit('HUD_UPDATE_LIVES', { lives: 3, maxLives: 3 });
 
-  // Afficher l'état initial du jeu
   if (data?.initialState) {
     eventBus.emit('GAME_STATE_UPDATE', data.initialState);
   }
 });
 
-// Fin de partie
+// Événement GAME_OVER reçu du serveur
+interface GameOverPayload {
+  winnerId: string | null;
+  winnerName?: string | null;
+}
+
 eventBus.on('GAME_OVER', (payload: unknown) => {
-  const data = payload as { winnerId: string | null; winnerName?: string | null };
-  showGameOver(data.winnerId, data.winnerName);
+  const data = payload as GameOverPayload;
+  isGameActive = false;
+  eventBus.emit('HUD_TIMER_STOP');
+  gameOverManager.show({
+    localPlayerId,
+    winnerId: data.winnerId,
+    winnerName: data.winnerName,
+  });
 });
 
-// Joueur éliminé (dont potentiellement le joueur local)
-eventBus.on('PLAYER_ELIMINATED', (payload: unknown) => {
-  const data = payload as { playerId: string };
-  const localId = socketManager.getPlayerId();
+// 8. Faux Serveur : Gestion continue des déplacements en boucle de jeu
+const activeDirections = new Set<string>();
 
-  if (localId && data.playerId === localId) {
-    // Le joueur local est éliminé → mettre les vies à 0
-    eventBus.emit('HUD_UPDATE_LIVES', { lives: 0 });
-    console.info('💀 Vous avez été éliminé !');
+eventBus.on('USER_ACTION', (action: unknown) => {
+  const kbAction = action as { type: string; payload: { direction: string } };
+
+  if (kbAction.type === 'MOVE_START') activeDirections.add(kbAction.payload.direction);
+  if (kbAction.type === 'MOVE_END') activeDirections.delete(kbAction.payload.direction);
+});
+
+// 8b. [DEBUG MOCK] Touche G = déclencher manuellement un Game Over de test
+window.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'g' || e.key === 'G') {
+    if (!isGameActive || gameOverManager.isVisible()) return;
+    // Alterner victoire et défaite à chaque pression pour faciliter les tests
+    const isWin = Math.random() > 0.5;
+    eventBus.emit('GAME_OVER', {
+      winnerId: isWin ? localPlayerId || 'p1' : 'other-player-id',
+      winnerName: isWin ? currentPseudo : 'Bot Ennemi',
+    });
   }
 });
 
-// Erreur serveur
-eventBus.on('SERVER_ERROR', (payload: unknown) => {
-  const data = payload as { message: string };
-  console.warn('Erreur serveur :', data.message);
-});
+// 9. Boucle de jeu Mock (60 FPS - uniquement active en mode Entraînement Solo)
+setInterval(() => {
+  if (!isGameActive || !isMockMode) return;
+  if (activeDirections.size === 0) return;
 
-// ──────────────────────────────────────────────────────────────────────────
-// 9. État initial : afficher le menu principal
-// ──────────────────────────────────────────────────────────────────────────
+  const player = mockGameState.players[0];
+  const speed = 0.08;
 
+  const { dx, dy, direction } = calculateMovementDelta(activeDirections, speed);
+  if (direction) {
+    player.direction = direction;
+  }
+
+  const newX = player.x + dx;
+  const newY = player.y + dy;
+
+  const gridX = Math.round(newX);
+  const gridY = Math.round(newY);
+
+  if (mockGameState.grid[gridY] && mockGameState.grid[gridY][gridX] === 0) {
+    player.x = newX;
+    player.y = newY;
+    eventBus.emit('GAME_STATE_UPDATE', mockGameState);
+  }
+}, 1000 / 60);
+
+// État initial : afficher le menu principal
 showScreen('menu');

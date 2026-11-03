@@ -31,9 +31,9 @@ describe("Écran d'Accueil et Lobby - Tests de structure et événements", () =>
     expect(htmlContent).toContain('id="players"');
   });
 
-  it('devrait contenir les actions du lobby (Prêt, Lancer, Retour)', () => {
+  it('devrait contenir les actions du lobby (Prêt, Retour) et ne plus avoir Lancer la partie', () => {
     expect(htmlContent).toContain('id="btn-ready"');
-    expect(htmlContent).toContain('id="btn-start-game"');
+    expect(htmlContent).not.toContain('id="btn-start-game"');
     expect(htmlContent).toContain('id="btn-back-menu"');
   });
 

@@ -1,5 +1,6 @@
 import floorSrc from '../assets/sprites/floor.png';
 import grassSrc from '../assets/sprites/grass.png';
+import wallSrc from '../assets/sprites/wall.png';
 import playerSrc from '../assets/sprites/sprite-sheet.png';
 import { eventBus } from '../core/EventBus';
 import type { GameState, PlayerState, CellType } from '@bomberman/shared';
@@ -28,10 +29,16 @@ export class GameRenderer {
   private tileSize = 50;
   private floorImg: HTMLImageElement;
   private grassImg: HTMLImageElement;
+  private wallImg: HTMLImageElement;
   private playerImg: HTMLImageElement;
 
   /** ID du joueur local (reçu via WELCOME du serveur) pour le mettre en avant */
   private localPlayerId: string | null = null;
+
+  /** Mémorise la dernière direction connue de chaque joueur pour l'orientation du sprite */
+  private playerDirections: Map<string, string> = new Map();
+  /** Mémorise la dernière position connue de chaque joueur pour déduire la direction */
+  private lastPlayerPositions: Map<string, { x: number; y: number }> = new Map();
 
   constructor(canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
@@ -43,13 +50,21 @@ export class GameRenderer {
     this.grassImg = new Image();
     this.grassImg.src = grassSrc;
 
+    this.wallImg = new Image();
+    this.wallImg.src = wallSrc;
+
     this.playerImg = new Image();
     this.playerImg.src = playerSrc;
 
     // Mémoriser l'ID local du joueur pour le rendu
+    eventBus.on('WELCOME', (payload: unknown) => {
+      const data = payload as { playerId: string };
+      if (data?.playerId) this.localPlayerId = data.playerId;
+    });
+
     eventBus.on('PLAYER_ID_ASSIGNED', (payload: unknown) => {
       const data = payload as { playerId: string };
-      this.localPlayerId = data.playerId;
+      if (data?.playerId) this.localPlayerId = data.playerId;
     });
 
     eventBus.on('GAME_STATE_UPDATE', (state: unknown) => {
@@ -79,32 +94,77 @@ export class GameRenderer {
   // ───────────────────────────── MODE SERVEUR ─────────────────────────────
 
   private renderServerState(state: GameState): void {
-    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
-
-    // Adapter la taille du canvas à la grille reçue
+    // Adapter la taille du canvas à la grille reçue si nécessaire
     const gridH = state.grid.length;
     const gridW = gridH > 0 ? state.grid[0].length : 0;
-    this.ctx.canvas.width = gridW * this.tileSize;
-    this.ctx.canvas.height = gridH * this.tileSize;
+    if (this.ctx.canvas.width !== gridW * this.tileSize) {
+      this.ctx.canvas.width = gridW * this.tileSize;
+    }
+    if (this.ctx.canvas.height !== gridH * this.tileSize) {
+      this.ctx.canvas.height = gridH * this.tileSize;
+    }
+
+    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
     // 1. Grille
     this.drawGrid(state.grid as number[][]);
 
-    // 2. Explosions
+    // 2. Power-ups
+    if (state.powerUps) {
+      this.drawPowerUps(state.powerUps);
+    }
+
+    // 3. Explosions
     if (state.explosions) {
       this.drawExplosions(state);
     }
 
-    // 3. Bombes
+    // 4. Bombes
     if (state.bombs) {
       this.drawBombs(state);
     }
 
-    // 4. Joueurs
+    // 5. Joueurs
     const players = Object.values(state.players) as PlayerState[];
     for (const player of players) {
       if (!player.isAlive) continue;
       this.drawServerPlayer(player);
+    }
+  }
+
+  private drawPowerUps(powerUps: NonNullable<GameState['powerUps']>): void {
+    const ctx = this.ctx;
+    const ts = this.tileSize;
+
+    const powerUpIcons: Record<string, string> = {
+      EXTRA_BOMB: '💣',
+      EXTRA_RANGE: '🔥',
+      SPEED_UP: '⚡',
+      REDUCED_BOMB_DELAY: '⏳',
+      EXTRA_LIFE: '❤️',
+    };
+
+    for (const pu of powerUps) {
+      const px = pu.position.x * ts;
+      const py = pu.position.y * ts;
+
+      ctx.save();
+      // Fond circulaire coloré pour rendre le bonus visible
+      ctx.beginPath();
+      ctx.arc(px + ts / 2, py + ts / 2, ts * 0.35, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffd700';
+      ctx.stroke();
+
+      // Icône du power-up
+      const icon = powerUpIcons[pu.type] || '✨';
+      ctx.font = `${ts * 0.45}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(icon, px + ts / 2, py + ts / 2);
+      ctx.restore();
     }
   }
 
@@ -118,13 +178,10 @@ export class GameRenderer {
         // Sol partout
         this.ctx.drawImage(this.floorImg, px, py, this.tileSize, this.tileSize);
 
-        if (cell === CELL_INDESTRUCTIBLE || cell === CELL_DESTRUCTIBLE) {
-          // Mur (indestructible = herbe pleine, destructible = herbe légèrement transparente)
-          if (cell === CELL_DESTRUCTIBLE) {
-            this.ctx.globalAlpha = 0.75;
-          }
+        if (cell === CELL_INDESTRUCTIBLE) {
           this.ctx.drawImage(this.grassImg, px, py, this.tileSize, this.tileSize);
-          this.ctx.globalAlpha = 1;
+        } else if (cell === CELL_DESTRUCTIBLE) {
+          this.ctx.drawImage(this.wallImg, px, py, this.tileSize, this.tileSize);
         } else if (cell === CELL_EMPTY) {
           // Juste le sol, déjà dessiné
         }
@@ -218,8 +275,20 @@ export class GameRenderer {
     const drawHeight = drawWidth * ratio;
     const offsetY = ts - drawHeight;
 
-    // On détermine la direction en regardant la dernière action (non disponible dans PlayerState).
-    // On utilise DOWN par défaut.
+    // Déduire la direction du joueur à partir du delta de déplacement
+    const lastPos = this.lastPlayerPositions.get(player.id);
+    let dir = this.playerDirections.get(player.id) || 'DOWN';
+
+    if (lastPos) {
+      if (player.position.x > lastPos.x) dir = 'RIGHT';
+      else if (player.position.x < lastPos.x) dir = 'LEFT';
+      else if (player.position.y > lastPos.y) dir = 'DOWN';
+      else if (player.position.y < lastPos.y) dir = 'UP';
+    }
+
+    this.lastPlayerPositions.set(player.id, { x: player.position.x, y: player.position.y });
+    this.playerDirections.set(player.id, dir);
+
     const animMap: Record<string, { row: number; colOffset: number }> = {
       UP: { row: 0, colOffset: 0 },
       LEFT: { row: 0, colOffset: 3 },
@@ -227,7 +296,7 @@ export class GameRenderer {
       RIGHT: { row: 0, colOffset: 9 },
     };
 
-    const anim = animMap['DOWN'];
+    const anim = animMap[dir] || animMap['DOWN'];
     const currentSpriteIndex = anim.colOffset + currentFrame;
     const sourceX = currentSpriteIndex * (spriteW + padding);
     const sourceY = anim.row * (spriteH + padding);
@@ -282,6 +351,8 @@ export class GameRenderer {
         this.ctx.drawImage(this.floorImg, px, py, this.tileSize, this.tileSize);
         if (state.grid[y][x] === 1) {
           this.ctx.drawImage(this.grassImg, px, py, this.tileSize, this.tileSize);
+        } else if (state.grid[y][x] === 2) {
+          this.ctx.drawImage(this.wallImg, px, py, this.tileSize, this.tileSize);
         }
       }
     }

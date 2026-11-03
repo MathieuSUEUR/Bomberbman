@@ -35,6 +35,7 @@ export class HudManager {
 
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private isTimerRunning = false;
+  private localPlayerId: string | null = null;
 
   constructor(parent?: HTMLElement | null, options: HudOptions = {}) {
     this.timerSeconds = options.initialTimerSeconds ?? 0;
@@ -174,10 +175,29 @@ export class HudManager {
       this.resetTimer(data?.seconds ?? 0);
     });
 
+    eventBus.on('GAME_OVER', () => {
+      this.stopTimer();
+    });
+
+    // Écoute de l'attribution de l'ID du joueur local
+    eventBus.on('WELCOME', (payload: unknown) => {
+      const data = payload as { playerId: string };
+      if (data?.playerId) this.localPlayerId = data.playerId;
+    });
+
+    eventBus.on('PLAYER_ID_ASSIGNED', (payload: unknown) => {
+      const data = payload as { playerId: string };
+      if (data?.playerId) this.localPlayerId = data.playerId;
+    });
+
     // Écoute de l'état de jeu pour synchroniser les informations quand disponibles
     eventBus.on('GAME_STATE_UPDATE', (payload: unknown) => {
       this.handleGameState(payload);
     });
+  }
+
+  public setLocalPlayerId(id: string): void {
+    this.localPlayerId = id;
   }
 
   public handleGameState(state: unknown): void {
@@ -198,6 +218,7 @@ export class HudManager {
         const p1 = s.players[0] as
           | {
               currentBombs?: number;
+              bombStock?: number;
               maxBombs?: number;
               score?: number;
               lives?: number;
@@ -207,7 +228,9 @@ export class HudManager {
         if (p1) {
           if (typeof p1.score === 'number') this.setScore(p1.score);
           if (typeof p1.maxBombs === 'number') this.setMaxBombs(p1.maxBombs);
-          if (typeof p1.currentBombs === 'number' && typeof p1.maxBombs === 'number') {
+          if (typeof p1.bombStock === 'number') {
+            this.setBombs(p1.bombStock);
+          } else if (typeof p1.currentBombs === 'number' && typeof p1.maxBombs === 'number') {
             const available = Math.max(0, p1.maxBombs - p1.currentBombs);
             this.setBombs(available);
           }
@@ -222,27 +245,35 @@ export class HudManager {
         const playersMap = s.players as Record<
           string,
           {
+            id?: string;
             currentBombs?: number;
+            bombStock?: number;
             maxBombs?: number;
             score?: number;
             lives?: number;
             isAlive?: boolean;
           }
         >;
-        const firstPlayer = Object.values(playersMap)[0];
-        if (firstPlayer) {
-          if (typeof firstPlayer.score === 'number') this.setScore(firstPlayer.score);
-          if (typeof firstPlayer.maxBombs === 'number') this.setMaxBombs(firstPlayer.maxBombs);
-          if (
-            typeof firstPlayer.currentBombs === 'number' &&
-            typeof firstPlayer.maxBombs === 'number'
+        // Priorité au joueur local si identifié, sinon premier joueur
+        const targetPlayer =
+          (this.localPlayerId && playersMap[this.localPlayerId]) ||
+          Object.values(playersMap)[0];
+
+        if (targetPlayer) {
+          if (typeof targetPlayer.score === 'number') this.setScore(targetPlayer.score);
+          if (typeof targetPlayer.maxBombs === 'number') this.setMaxBombs(targetPlayer.maxBombs);
+          if (typeof targetPlayer.bombStock === 'number') {
+            this.setBombs(targetPlayer.bombStock);
+          } else if (
+            typeof targetPlayer.currentBombs === 'number' &&
+            typeof targetPlayer.maxBombs === 'number'
           ) {
-            const available = Math.max(0, firstPlayer.maxBombs - firstPlayer.currentBombs);
+            const available = Math.max(0, targetPlayer.maxBombs - targetPlayer.currentBombs);
             this.setBombs(available);
           }
-          if (typeof firstPlayer.lives === 'number') {
-            this.setLives(firstPlayer.lives);
-          } else if (typeof firstPlayer.isAlive === 'boolean' && !firstPlayer.isAlive) {
+          if (typeof targetPlayer.lives === 'number') {
+            this.setLives(targetPlayer.lives);
+          } else if (typeof targetPlayer.isAlive === 'boolean' && !targetPlayer.isAlive) {
             this.setLives(0);
           }
         }
@@ -260,6 +291,9 @@ export class HudManager {
   public startTimer(): void {
     if (this.isTimerRunning) return;
     this.isTimerRunning = true;
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+    }
     this.timerInterval = setInterval(() => {
       this.setTimer(this.timerSeconds + 1);
     }, 1000);
@@ -275,6 +309,14 @@ export class HudManager {
 
   public resetTimer(seconds = 0): void {
     this.setTimer(seconds);
+    if (this.isTimerRunning) {
+      if (this.timerInterval) {
+        clearInterval(this.timerInterval);
+      }
+      this.timerInterval = setInterval(() => {
+        this.setTimer(this.timerSeconds + 1);
+      }, 1000);
+    }
   }
 
   public setScore(score: number): void {
