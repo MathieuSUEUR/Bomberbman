@@ -60,6 +60,7 @@ export class SocketManager {
       case 'WELCOME':
         this.playerId = message.payload.playerId;
         console.info('🎮 Identifié par le serveur avec l\'ID :', this.playerId);
+        eventBus.emit('WELCOME', message.payload);
         eventBus.emit('PLAYER_ID_ASSIGNED', { playerId: this.playerId });
         break;
 

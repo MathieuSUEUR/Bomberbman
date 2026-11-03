@@ -216,4 +216,36 @@ describe('HudManager - Tests de la logique et du state', () => {
     expect(hud.getHudData().availableBombs).toBe(2);
     expect(hud.getHudData().lives).toBe(0);
   });
+
+  it('devrait synchroniser le HUD avec les données réelles du serveur (bombStock et ciblage par localPlayerId)', () => {
+    hud.setLocalPlayerId('player-2');
+    const realServerState = {
+      tick: 100, // 5s
+      grid: [[0, 0]],
+      players: {
+        'player-1': {
+          id: 'player-1',
+          name: 'P1',
+          bombStock: 0,
+          maxBombs: 1,
+          lives: 1,
+          isAlive: true,
+        },
+        'player-2': {
+          id: 'player-2',
+          name: 'P2',
+          bombStock: 2,
+          maxBombs: 3,
+          lives: 3,
+          isAlive: true,
+        },
+      },
+    };
+
+    hud.handleGameState(realServerState);
+    expect(hud.getHudData().timerSeconds).toBe(5);
+    expect(hud.getHudData().availableBombs).toBe(2);
+    expect(hud.getHudData().maxBombs).toBe(3);
+    expect(hud.getHudData().lives).toBe(3);
+  });
 });
