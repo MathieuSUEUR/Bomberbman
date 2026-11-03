@@ -269,7 +269,7 @@ eventBus.on('LOBBY_STATE', (payload: unknown) => {
   if (playersList) {
     playersList.innerHTML = '';
     data.players.forEach((p) => {
-      const isCurrent = p.name === currentPseudo;
+      const isCurrent = localPlayerId ? p.id === localPlayerId : p.name === currentPseudo;
       const li = document.createElement('li');
       li.className = `player-item ${isCurrent ? 'current-player' : ''}`;
       li.innerHTML = `
