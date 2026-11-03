@@ -262,6 +262,15 @@ export class GameRenderer {
   // ───────────────────────────── MODE MOCK ─────────────────────────────
 
   private renderMockState(state: MockGameState): void {
+    const gridH = state.grid.length;
+    const gridW = gridH > 0 ? state.grid[0].length : 0;
+    if (this.ctx.canvas.width !== gridW * this.tileSize) {
+      this.ctx.canvas.width = gridW * this.tileSize;
+    }
+    if (this.ctx.canvas.height !== gridH * this.tileSize) {
+      this.ctx.canvas.height = gridH * this.tileSize;
+    }
+
     this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
     // 1. Grille mock (0 = sol, 1 = mur)

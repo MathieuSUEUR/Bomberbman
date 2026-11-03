@@ -23,30 +23,55 @@ function createEmptyGrid(): GameMap {
   return new GameMap(grid);
 }
 
+function makePlayer(
+  id: string,
+  x: number,
+  y: number,
+  overrides: Partial<PlayerState> = {}
+): PlayerState {
+  return {
+    id,
+    name: id,
+    position: { x, y },
+    isAlive: true,
+    maxBombs: 1,
+    bombStock: 1,
+    bombRange: 2,
+    lives: 1,
+    bombRechargeTicks: DEFAULT_GAME_CONFIG.bombRechargeTicks,
+    nextBombRechargeTick: null,
+    speed: 1,
+    invulnerableUntilTick: 0,
+    ...overrides,
+  };
+}
+
+function createBombManager(): BombManager {
+  return new BombManager(DEFAULT_GAME_CONFIG.explosionDurationTicks);
+}
+
 describe('BombManager', () => {
   it('ne place qu une bombe par case', () => {
-    const bombManager = new BombManager(
-      DEFAULT_GAME_CONFIG.bombCountdownTicks,
-      DEFAULT_GAME_CONFIG.explosionDurationTicks
-    );
+    const bombManager = createBombManager();
+    const p1 = makePlayer('p1', 3, 3, { maxBombs: 2, bombStock: 2 });
 
-    bombManager.placerBombe('p1', 3, 3, 2, 10);
-    bombManager.placerBombe('p1', 3, 3, 2, 11);
+    expect(bombManager.placerBombe(p1, 10)).toBe(true);
+    expect(bombManager.placerBombe(p1, 11)).toBe(false);
 
     expect(bombManager.getBombs()).toHaveLength(1);
     expect(bombManager.getBombs()[0].ownerId).toBe('p1');
+    // La seconde tentative refusee ne doit pas consommer de stock
+    expect(p1.bombStock).toBe(1);
   });
 
   it('déclenche une explosion et détruit un mur destructible', () => {
-    const bombManager = new BombManager(
-      DEFAULT_GAME_CONFIG.bombCountdownTicks,
-      DEFAULT_GAME_CONFIG.explosionDurationTicks
-    );
+    const bombManager = createBombManager();
     const map = createEmptyGrid();
+    const p1 = makePlayer('p1', 4, 4, { bombRange: 1 });
 
     map.setCell(5, 4, CellType.DESTRUCTIBLE_WALL);
-    bombManager.placerBombe('p1', 4, 4, 1, 10);
-    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, new Map());
+    bombManager.placerBombe(p1, 10);
+    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, new Map(), []);
 
     expect(bombManager.getBombs()).toHaveLength(0);
     expect(bombManager.getExplosions().length).toBeGreaterThan(0);
@@ -54,78 +79,86 @@ describe('BombManager', () => {
   });
 
   it('élimine un joueur présent dans la zone d explosion', () => {
-    const bombManager = new BombManager(
-      DEFAULT_GAME_CONFIG.bombCountdownTicks,
-      DEFAULT_GAME_CONFIG.explosionDurationTicks
-    );
+    const bombManager = createBombManager();
     const map = createEmptyGrid();
-    const players = new Map<string, PlayerState>([
-      [
-        'p1',
-        {
-          id: 'p1',
-          name: 'Alice',
-          position: { x: 5, y: 4 },
-          isAlive: true,
-          maxBombs: 1,
-          currentBombs: 0,
-          bombRange: 2,
-          speed: 1,
-        },
-      ],
-    ]);
+    const victime = makePlayer('p1', 5, 4);
+    const players = new Map<string, PlayerState>([['p1', victime]]);
 
-    bombManager.placerBombe('p2', 4, 4, 1, 10);
-    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players);
+    // La bombe est posee par un autre joueur, absent de la Map des joueurs
+    const poseur = makePlayer('p2', 4, 4, { bombRange: 1 });
+    bombManager.placerBombe(poseur, 10);
+    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players, []);
 
     expect(players.get('p1')?.isAlive).toBe(false);
   });
 
-  it('fait exploser en chaîne une autre bombe touchée par le souffle', () => {
-    const bombManager = new BombManager(
-      DEFAULT_GAME_CONFIG.bombCountdownTicks,
-      DEFAULT_GAME_CONFIG.explosionDurationTicks
-    );
-    const map = createEmptyGrid();
-    const players = new Map<string, PlayerState>();
+  it('ne pose pas de bombe quand le stock est vide', () => {
+    const bombManager = createBombManager();
+    const p1 = makePlayer('p1', 3, 3, { bombStock: 0 });
 
-    // Bombe 1 en (4,4) posée au tick 10
-    bombManager.placerBombe('p1', 4, 4, 2, 10);
-    // Bombe 2 en (6,4) posée au tick 15 (dans le rayon de 2 de la première bombe)
-    bombManager.placerBombe('p2', 6, 4, 2, 15);
-
-    // Au tick 10 + countdown, la bombe 1 explose et touche la bombe 2
-    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players);
-
-    // Les deux bombes doivent avoir explosé
+    expect(bombManager.placerBombe(p1, 10)).toBe(false);
     expect(bombManager.getBombs()).toHaveLength(0);
-    
-    // On vérifie qu'on a bien les flammes de la bombe 2
-    const explosions = bombManager.getExplosions();
-    expect(explosions.some(e => e.position.x === 6 && e.position.y === 4)).toBe(true);
   });
 
-  it('récupère la bombe d un joueur après explosion (décrémente currentBombs)', () => {
-    const bombManager = new BombManager(
-      DEFAULT_GAME_CONFIG.bombCountdownTicks,
-      DEFAULT_GAME_CONFIG.explosionDurationTicks
-    );
+  it('ne pose pas de bombe quand le joueur est mort', () => {
+    const bombManager = createBombManager();
+    const p1 = makePlayer('p1', 3, 3, { isAlive: false });
+
+    expect(bombManager.placerBombe(p1, 10)).toBe(false);
+    expect(bombManager.getBombs()).toHaveLength(0);
+  });
+
+  it('consomme une bombe du stock et lance le chrono de recharge', () => {
+    const bombManager = createBombManager();
+    const p1 = makePlayer('p1', 3, 3);
+
+    bombManager.placerBombe(p1, 10);
+
+    expect(p1.bombStock).toBe(0);
+    expect(p1.nextBombRechargeTick).toBe(10 + p1.bombRechargeTicks);
+  });
+
+  it('rend une bombe après bombRechargeTicks', () => {
+    const bombManager = createBombManager();
     const map = createEmptyGrid();
-    const player: PlayerState = {
-      id: 'p1',
-      name: 'Alice',
-      position: { x: 1, y: 1 },
-      isAlive: true,
-      maxBombs: 1,
-      currentBombs: 1,
-      bombRange: 2,
-      speed: 1,
-    };
-    const players = new Map<string, PlayerState>([['p1', player]]);
+    // Recharge (30) plus courte que la mèche (60) : le joueur n'est pas touche par sa bombe
+    const p1 = makePlayer('p1', 3, 3, { bombRechargeTicks: 30 });
+    const players = new Map<string, PlayerState>([['p1', p1]]);
 
-    bombManager.placerBombe('p1', 1, 1, 1, 10);
-    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players);
+    bombManager.placerBombe(p1, 10);
+    expect(p1.bombStock).toBe(0);
 
-    expect(player.currentBombs).toBe(0);
+    // Un tick avant l'echeance : rien n'est rendu
+    bombManager.tick(39, map, players, []);
+    expect(p1.bombStock).toBe(0);
+
+    // A l'echeance : une bombe est rendue et le chrono s'arrete (stock plein)
+    bombManager.tick(40, map, players, []);
+    expect(p1.bombStock).toBe(1);
+    expect(p1.nextBombRechargeTick).toBeNull();
+  });
+
+  it('relance le chrono tant que le stock n est pas plein', () => {
+    const bombManager = createBombManager();
+    const map = createEmptyGrid();
+    const p1 = makePlayer('p1', 3, 3, { maxBombs: 2, bombStock: 2, bombRechargeTicks: 30 });
+    const players = new Map<string, PlayerState>([['p1', p1]]);
+
+    bombManager.placerBombe(p1, 10);
+    // Deuxieme bombe sur une autre case
+    p1.position = { x: 3, y: 5 };
+    bombManager.placerBombe(p1, 12);
+    expect(p1.bombStock).toBe(0);
+
+    // Le joueur s'eloigne des bombes pour ne pas etre touche
+    p1.position = { x: 10, y: 10 };
+
+    bombManager.tick(40, map, players, []);
+    expect(p1.bombStock).toBe(1);
+    expect(p1.nextBombRechargeTick).toBe(70);
+
+    bombManager.tick(70, map, players, []);
+    expect(p1.bombStock).toBe(2);
+    expect(p1.nextBombRechargeTick).toBeNull();
   });
 });

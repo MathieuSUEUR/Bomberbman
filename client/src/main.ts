@@ -1,7 +1,9 @@
 import './style.css';
 import { GameRenderer } from './view/GameRenderer';
+import { GameOverManager } from './view/GameOverManager';
 import { HudManager } from './view/HudManager';
 import { eventBus } from './core/EventBus';
+import { calculateMovementDelta } from './core/movement';
 import { InputManager } from './core/InputManager';
 import { SocketManager } from './network/SocketManager';
 
@@ -66,6 +68,7 @@ const serverStatusText = document.getElementById('server-status-text');
 // ──────────────────────────────────────────────────────────────────────────
 
 let currentPseudo = 'Joueur 1';
+let localPlayerId = '';
 let isPlayerReady = false;
 let isGameActive = false;
 let isMockMode = false; // true = mode solo/entraînement, false = mode réseau
@@ -87,6 +90,28 @@ function showScreen(screen: ScreenType): void {
     existingGameOver.style.display = screen === 'gameover' ? 'flex' : 'none';
   }
 }
+
+// 4b. Instanciation du gestionnaire de la modale Game Over
+const gameOverManager = new GameOverManager(
+  // Callback "Rejouer" : retour au lobby
+  () => {
+    isGameActive = false;
+    isMockMode = false;
+    isPlayerReady = false;
+    if (btnReadyText) btnReadyText.textContent = 'Je suis prêt !';
+    if (currentPlayerStatus) {
+      currentPlayerStatus.className = 'player-status-tag waiting';
+      currentPlayerStatus.textContent = 'En attente';
+    }
+    showScreen('lobby');
+  },
+  // Callback "Menu principal"
+  () => {
+    isGameActive = false;
+    isMockMode = false;
+    showScreen('menu');
+  },
+);
 
 function escapeHtml(str: string): string {
   const div = document.createElement('div');
@@ -188,6 +213,7 @@ const mockGameState = {
 function startMockGame(): void {
   isMockMode = true;
   isGameActive = true;
+  isMockMode = true;
   showScreen('game');
 
   mockGameState.players[0].x = 1;
@@ -281,6 +307,11 @@ btnStartGame.addEventListener('click', () => {
     startMockGame();
   }
   // Sinon, la partie démarre automatiquement quand tous les joueurs sont prêts (GAME_START)
+  // En multijoueur, le jeu démarre via l'événement GAME_START du serveur quand tous les joueurs sont prêts.
+  // Si le serveur est hors-ligne, on permet de tester en local.
+  if (serverStatusDot && serverStatusDot.classList.contains('offline')) {
+    startMockGame();
+  }
 });
 
 btnBackMenu.addEventListener('click', () => {
@@ -296,10 +327,13 @@ btnBackMenu.addEventListener('click', () => {
   showScreen('menu');
 });
 
+
+// Clic sur "Quitter la partie" depuis la zone de jeu
 if (btnLeaveGame) {
   btnLeaveGame.addEventListener('click', () => {
     isGameActive = false;
     isMockMode = false;
+    gameOverManager.hide();
     eventBus.emit('HUD_TIMER_STOP');
     showScreen('menu');
   });
@@ -324,6 +358,14 @@ eventBus.on('SERVER_STATUS', (status: unknown) => {
 });
 
 // État du lobby : mise à jour de la liste des joueurs
+// Réception de l'ID joueur local attribué par le serveur dès la connexion
+eventBus.on('WELCOME', (payload: unknown) => {
+  const data = payload as { playerId: string };
+  if (data?.playerId) {
+    localPlayerId = data.playerId;
+  }
+});
+
 interface LobbyPlayer {
   id: string;
   name: string;
@@ -369,9 +411,11 @@ eventBus.on('LOBBY_STATE', (payload: unknown) => {
 
 // Démarrage de la partie par le serveur
 eventBus.on('GAME_START', (payload: unknown) => {
-  const data = payload as { initialState?: unknown };
+  const data = payload as { initialState?: unknown; playerId?: string };
   isGameActive = true;
   isMockMode = false;
+  // Mémoriser l'ID local reçu à la connexion (WELCOME) ou au GAME_START
+  if (data?.playerId) localPlayerId = data.playerId;
   showScreen('game');
 
   // Réinitialiser le HUD
@@ -410,6 +454,11 @@ eventBus.on('SERVER_ERROR', (payload: unknown) => {
   const data = payload as { message: string };
   console.warn('Erreur serveur :', data.message);
 });
+  const newX = player.x + dx;
+  const newY = player.y + dy;
+
+  const gridX = Math.round(newX);
+  const gridY = Math.round(newY);
 
 // ──────────────────────────────────────────────────────────────────────────
 // 9. État initial : afficher le menu principal
