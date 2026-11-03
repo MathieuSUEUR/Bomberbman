@@ -177,6 +177,8 @@ export class HudManager {
 
     eventBus.on('GAME_OVER', () => {
       this.stopTimer();
+    });
+
     // Écoute de l'attribution de l'ID du joueur local
     eventBus.on('WELCOME', (payload: unknown) => {
       const data = payload as { playerId: string };
