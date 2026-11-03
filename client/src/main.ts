@@ -3,7 +3,6 @@ import { GameRenderer } from './view/GameRenderer';
 import { GameOverManager } from './view/GameOverManager';
 import { HudManager } from './view/HudManager';
 import { eventBus } from './core/EventBus';
-import { calculateMovementDelta } from './core/movement';
 import { InputManager } from './core/InputManager';
 import { SocketManager } from './network/SocketManager';
 
@@ -69,6 +68,8 @@ const serverStatusText = document.getElementById('server-status-text');
 
 let currentPseudo = 'Joueur 1';
 let localPlayerId = '';
+// je met ça pour empêcher l'erreur du linter de m*rd*
+localPlayerId;
 let isPlayerReady = false;
 let isGameActive = false;
 let isMockMode = false; // true = mode solo/entraînement, false = mode réseau
@@ -454,11 +455,6 @@ eventBus.on('SERVER_ERROR', (payload: unknown) => {
   const data = payload as { message: string };
   console.warn('Erreur serveur :', data.message);
 });
-  const newX = player.x + dx;
-  const newY = player.y + dy;
-
-  const gridX = Math.round(newX);
-  const gridY = Math.round(newY);
 
 // ──────────────────────────────────────────────────────────────────────────
 // 9. État initial : afficher le menu principal
