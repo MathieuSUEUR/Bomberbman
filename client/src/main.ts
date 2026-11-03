@@ -66,10 +66,8 @@ const serverStatusText = document.getElementById('server-status-text');
 // 4. État de l'interface
 // ──────────────────────────────────────────────────────────────────────────
 
+let currentPseudo = 'Joueur 1';
 let localPlayerId = '';
-// je met ça pour empêcher l'erreur du linter de m*rd*
-let currentPseudo = localPlayerId
-currentPseudo = 'Joueur 1';
 let isPlayerReady = false;
 let isGameActive = false;
 let isMockMode = false; // true = mode solo/entraînement, false = mode réseau
@@ -172,14 +170,14 @@ function showGameOver(winnerId: string | null, winnerName?: string | null): void
   const title = document.getElementById('gameover-title')!;
   const subtitle = document.getElementById('gameover-subtitle')!;
 
-  const localPlayerId = socketManager.getPlayerId();
+  const currentLocalId = localPlayerId || socketManager.getPlayerId();
 
   if (!winnerId) {
     // Égalité
     icon.textContent = '🤝';
     title.textContent = 'Égalité !';
     subtitle.textContent = 'Personne ne remporte la partie.';
-  } else if (localPlayerId && winnerId === localPlayerId) {
+  } else if (currentLocalId && winnerId === currentLocalId) {
     // Le joueur local a gagné
     icon.textContent = '🏆';
     title.textContent = 'Victoire !';
