@@ -6,12 +6,7 @@ import { BombState, ExplosionCell } from './bomb.js';
 export type GameStatus = 'WAITING' | 'STARTING' | 'IN_PROGRESS' | 'FINISHED';
 
 //type d'action
-export type ActionType =
-  | 'MOVE_UP'
-  | 'MOVE_DOWN'
-  | 'MOVE_LEFT'
-  | 'MOVE_RIGHT'
-  | 'PLACE_BOMB';
+export type ActionType = 'MOVE_UP' | 'MOVE_DOWN' | 'MOVE_LEFT' | 'MOVE_RIGHT' | 'PLACE_BOMB';
 
 //action d'un joueur
 export interface PlayerAction {
@@ -36,8 +31,8 @@ export interface GameConfig {
   tickRate: number;
   gridWidth: number;
   gridHeight: number;
-  bombCountdownTicks: number;  
-  bombRechargeTicks: number;    
+  bombCountdownTicks: number;
+  bombRechargeTicks: number;
   explosionDurationTicks: number;
   powerUpDropPercentage: number;
   startingLives: number;
@@ -46,6 +41,9 @@ export interface GameConfig {
   suddenDeathDropIntervalTicks: number;
   moveDelayTicks: number;
   minMoveDelayTicks: number;
+  ExplosionScore: number;
+  KillScore: number;
+  PowerUpScore: number;
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
@@ -60,15 +58,18 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   invulnerabilityDurationTicks: 100,
   gameDurationTicks: 2400, // 2 minutes (120s * 20 ticks)
   suddenDeathDropIntervalTicks: 10, // Un bloc toutes les 0.5s
-  moveDelayTicks: 4,        // 0,2 s a 20 ticks/s
+  moveDelayTicks: 4, // 0,2 s a 20 ticks/s
   minMoveDelayTicks: 2,
+  ExplosionScore: 50,
+  KillScore: 500,
+  PowerUpScore: 200,
 };
 
 /**
  * Retourne les quatre positions de départ des joueurs.
  * @param width La largeur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridWidth`).
  * @param height La hauteur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridHeight`).
- * 
+ *
  * On utilise `width - 2` et `height - 2` parce que les bordures du plateau sont occupées
  * par des murs indestructibles (indices `0` et `width - 1` / `height - 1`). Les cases
  * jouables les plus proches des coins sont donc `1` et `width - 2`.
@@ -89,7 +90,7 @@ export function getSpawnPositions(
  * Retourne les 12 cases qui constituent les zones sûres des quatre coins du plateau.
  * @param width La largeur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridWidth`).
  * @param height La hauteur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridHeight`).
- * 
+ *
  * Chaque coin possède 3 cases de sécurité pour éviter que les joueurs soient immédiatement
  * bloqués par des murs au moment de l'apparition. Les coins sont donc définis comme des
  * zones autour des emplacements initiaux, et non pas seulement par la seule case exacte.
@@ -130,7 +131,7 @@ export function getSafeCornerCells(
  * @param y L'indice de la ligne de la case.
  * @param width La largeur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridWidth`).
  * @param height La hauteur du plateau (par défaut, `DEFAULT_GAME_CONFIG.gridHeight`).
- * 
+ *
  * Les seuls indices utilisables près des bords sont `1` et `width - 2`; c'est pourquoi
  * les zones de spawn sont décalées d'un case depuis les murs externes.
  */
@@ -140,5 +141,33 @@ export function isSafeCornerCell(
   width = DEFAULT_GAME_CONFIG.gridWidth,
   height = DEFAULT_GAME_CONFIG.gridHeight,
 ): boolean {
-  return getSafeCornerCells(width, height).some(cell => cell.x === x && cell.y === y);
+  return getSafeCornerCells(width, height).some((cell) => cell.x === x && cell.y === y);
 }
+
+/**
+ * Barème des points attribués aux joueurs selon les actions de jeu.
+ */
+export const SCORE_VALUES = {
+  DESTROY_WALL: 50,
+  PICKUP_POWERUP: 200,
+  ELIMINATE_PLAYER: 500,
+} as const;
+
+/**
+ * Incrémente le score d'un joueur dans l'état de jeu.
+ * @param players La collection des joueurs (Map ou Record)
+ * @param playerId L'identifiant du joueur
+ * @param points Le nombre de points à ajouter
+ */
+export function incrementPlayerScore(
+  players: Record<string, PlayerState> | Map<string, PlayerState>,
+  playerId: string,
+  points: number,
+): void {
+  const player = players instanceof Map ? players.get(playerId) : players[playerId];
+  if (player) {
+    player.score = (player.score || 0) + points;
+  }
+}
+
+

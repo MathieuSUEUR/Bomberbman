@@ -16,4 +16,5 @@ export interface PlayerState {
   nextMoveTick: number;
   color?: string;
   invulnerableUntilTick: number;
+  score: number;
 }
