@@ -41,6 +41,10 @@ class TestClient {
     });
   }
 
+  public clearMessages() {
+    this.messages = [];
+  }
+
   public send(msg: ClientMessage) {
     this.ws.send(JSON.stringify(msg));
   }
@@ -261,5 +265,103 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
       expect(gameOver1.payload.winnerName).toBe('Player 1');
     }
   });
-});
+  it('devrait réinitialiser l\'état du lobby (isReady: false) après un GAME_OVER et permettre de relancer une partie', async () => {
+    const client1 = await createClient();
+    await client1.waitForMessage((m) => m.type === 'WELCOME');
+    client1.send({ type: 'JOIN', payload: { name: 'Player 1' } });
+    await client1.waitForMessage((m) => m.type === 'LOBBY_STATE');
 
+    const client2 = await createClient();
+    const welcome2 = await client2.waitForMessage((m) => m.type === 'WELCOME');
+    const p2Id = welcome2.type === 'WELCOME' ? welcome2.payload.playerId : '';
+    client2.send({ type: 'JOIN', payload: { name: 'Player 2' } });
+    await client1.waitForMessage((m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2);
+
+    // Début de la partie 1
+    client1.send({ type: 'READY', payload: { isReady: true } });
+    client2.send({ type: 'READY', payload: { isReady: true } });
+    await Promise.all([
+      client1.waitForMessage((m) => m.type === 'GAME_START'),
+      client2.waitForMessage((m) => m.type === 'GAME_START'),
+    ]);
+
+    client1.clearMessages();
+    client2.clearMessages();
+
+    // Fin de la partie 1 (élimination de p2)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const internalPlayers = (engine as any).players as Map<string, any>;
+    internalPlayers.get(p2Id).isAlive = false;
+    engine.tick();
+
+    await Promise.all([
+      client1.waitForMessage((m) => m.type === 'GAME_OVER'),
+      client2.waitForMessage((m) => m.type === 'GAME_OVER'),
+    ]);
+
+    // Après GAME_OVER, un LOBBY_STATE réinitialisé doit être reçu (tous les joueurs avec isReady: false)
+    const lobbyAfterGameOver = await client1.waitForMessage(
+      (m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2 && m.payload.canStart === false,
+    );
+    expect(lobbyAfterGameOver.type).toBe('LOBBY_STATE');
+    if (lobbyAfterGameOver.type === 'LOBBY_STATE') {
+      expect(lobbyAfterGameOver.payload.players.every((p) => !p.isReady)).toBe(true);
+      expect(lobbyAfterGameOver.payload.canStart).toBe(false);
+    }
+
+    // Les joueurs se redéclarent prêts pour relancer la partie
+    client1.send({ type: 'READY', payload: { isReady: true } });
+    client2.send({ type: 'READY', payload: { isReady: true } });
+
+    // Une nouvelle partie doit être lancée (GAME_START)
+    const [gameStart1, gameStart2] = await Promise.all([
+      client1.waitForMessage((m) => m.type === 'GAME_START'),
+      client2.waitForMessage((m) => m.type === 'GAME_START'),
+    ]);
+
+    expect(gameStart1.type).toBe('GAME_START');
+    expect(gameStart2.type).toBe('GAME_START');
+  });
+
+  it('devrait éliminer un joueur et diffuser GAME_OVER lorsqu un joueur se déconnecte pendant la partie', async () => {
+    const client1 = await createClient();
+    const welcome1 = await client1.waitForMessage((m) => m.type === 'WELCOME');
+    const p1Id = welcome1.type === 'WELCOME' ? welcome1.payload.playerId : '';
+    client1.send({ type: 'JOIN', payload: { name: 'Player 1' } });
+    await client1.waitForMessage((m) => m.type === 'LOBBY_STATE');
+
+    const client2 = await createClient();
+    const welcome2 = await client2.waitForMessage((m) => m.type === 'WELCOME');
+    const p2Id = welcome2.type === 'WELCOME' ? welcome2.payload.playerId : '';
+    client2.send({ type: 'JOIN', payload: { name: 'Player 2' } });
+    await client1.waitForMessage((m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2);
+
+    client1.send({ type: 'READY', payload: { isReady: true } });
+    client2.send({ type: 'READY', payload: { isReady: true } });
+    await Promise.all([
+      client1.waitForMessage((m) => m.type === 'GAME_START'),
+      client2.waitForMessage((m) => m.type === 'GAME_START'),
+    ]);
+
+    client1.clearMessages();
+
+    // Déconnexion de client2 en pleine partie
+    client2.close();
+
+    const [eliminatedMsg, gameOverMsg] = await Promise.all([
+      client1.waitForMessage((m) => m.type === 'PLAYER_ELIMINATED'),
+      client1.waitForMessage((m) => m.type === 'GAME_OVER'),
+    ]);
+
+    expect(eliminatedMsg.type).toBe('PLAYER_ELIMINATED');
+    if (eliminatedMsg.type === 'PLAYER_ELIMINATED') {
+      expect(eliminatedMsg.payload.playerId).toBe(p2Id);
+    }
+
+    expect(gameOverMsg.type).toBe('GAME_OVER');
+    if (gameOverMsg.type === 'GAME_OVER') {
+      expect(gameOverMsg.payload.winnerId).toBe(p1Id);
+      expect(gameOverMsg.payload.winnerName).toBe('Player 1');
+    }
+  });
+});
