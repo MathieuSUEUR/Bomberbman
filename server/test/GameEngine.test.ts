@@ -66,9 +66,8 @@ describe('GameEngine - Tests unitaires primitifs', () => {
 
     engine.initPlayers(lobbyPlayers);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(
-      Object.values(engine.obtenirEtatActuel().players).map((player: any) => player.position),
+      Object.values(engine.obtenirEtatActuel().players).map((player) => player.position),
     ).toEqual([
       { x: 1, y: 1 },
       { x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: 1 },
