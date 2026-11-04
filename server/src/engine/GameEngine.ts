@@ -11,7 +11,8 @@ import {
     CellType,
     Direction,
     Position,
-    GameOverPayload
+    GameOverPayload,
+    SCORE_VALUES
 } from '@bomberman/shared';
 
 import { Map as GameMap } from '../map/Map.js';
@@ -89,7 +90,13 @@ export class GameEngine extends EventEmitter {
         // Le ramassage passe avant les explosions : un bonus ne peut pas etre ramasse
         // sur une case ou le joueur vient de mourir
         const pickups = this.powerUpManager.collect(this.players, this.powerUps);
-        pickups.forEach(pickup => this.emit('powerUpCollected', pickup));
+        pickups.forEach(pickup => {
+            const player = this.players.get(pickup.playerId);
+            if (player) {
+                player.score = (player.score || 0) + SCORE_VALUES.PICKUP_POWERUP;
+            }
+            this.emit('powerUpCollected', pickup);
+        });
 
         const tickResult = this.bombManager.tick(this.tickCount, this.map, this.players, this.powerUps);
 
@@ -161,7 +168,8 @@ export class GameEngine extends EventEmitter {
                 invulnerableUntilTick: 0,
                 bombRechargeTicks: DEFAULT_GAME_CONFIG.bombRechargeTicks,
                 nextBombRechargeTick: null,
-                color: `player-${index + 1}`
+                color: `player-${index + 1}`,
+                score: 0
             });
         });
         this.status = 'IN_PROGRESS';
