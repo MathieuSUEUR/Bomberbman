@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { DEFAULT_GAME_CONFIG, getSafeCornerCells, getSpawnPositions, isSafeCornerCell, CellType } from '@bomberman/shared';
+import {
+  DEFAULT_GAME_CONFIG,
+  getSafeCornerCells,
+  getSpawnPositions,
+  isSafeCornerCell,
+  CellType,
+} from '@bomberman/shared';
 import { GameEngine } from '../src/engine/GameEngine.js';
 
 describe('GameEngine - Tests unitaires primitifs', () => {
@@ -37,13 +43,17 @@ describe('GameEngine - Tests unitaires primitifs', () => {
       { x: 1, y: 1 },
       { x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: 1 },
       { x: 1, y: DEFAULT_GAME_CONFIG.gridHeight - 2 },
-      { x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: DEFAULT_GAME_CONFIG.gridHeight - 2 }
+      { x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: DEFAULT_GAME_CONFIG.gridHeight - 2 },
     ]);
 
     expect(getSafeCornerCells()).toContainEqual({ x: 1, y: 1 });
     expect(getSafeCornerCells()).toContainEqual({ x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: 1 });
-    expect(isSafeCornerCell(2, 1, DEFAULT_GAME_CONFIG.gridWidth, DEFAULT_GAME_CONFIG.gridHeight)).toBe(true);
-    expect(isSafeCornerCell(3, 3, DEFAULT_GAME_CONFIG.gridWidth, DEFAULT_GAME_CONFIG.gridHeight)).toBe(false);
+    expect(
+      isSafeCornerCell(2, 1, DEFAULT_GAME_CONFIG.gridWidth, DEFAULT_GAME_CONFIG.gridHeight),
+    ).toBe(true);
+    expect(
+      isSafeCornerCell(3, 3, DEFAULT_GAME_CONFIG.gridWidth, DEFAULT_GAME_CONFIG.gridHeight),
+    ).toBe(false);
   });
 
   it('devrait initialiser les joueurs sur des spawn calculés depuis la configuration partagée', () => {
@@ -51,16 +61,18 @@ describe('GameEngine - Tests unitaires primitifs', () => {
       { id: 'p1', name: 'Alice', isReady: true },
       { id: 'p2', name: 'Bob', isReady: true },
       { id: 'p3', name: 'Charlie', isReady: true },
-      { id: 'p4', name: 'Diana', isReady: true }
+      { id: 'p4', name: 'Diana', isReady: true },
     ];
 
     engine.initPlayers(lobbyPlayers);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(Object.values(engine.obtenirEtatActuel().players).map((player: any) => player.position)).toEqual([      { x: 1, y: 1 },
+    expect(
+      Object.values(engine.obtenirEtatActuel().players).map((player) => player.position),
+    ).toEqual([
+      { x: 1, y: 1 },
       { x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: 1 },
       { x: 1, y: DEFAULT_GAME_CONFIG.gridHeight - 2 },
-      { x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: DEFAULT_GAME_CONFIG.gridHeight - 2 }
+      { x: DEFAULT_GAME_CONFIG.gridWidth - 2, y: DEFAULT_GAME_CONFIG.gridHeight - 2 },
     ]);
   });
 });
@@ -78,7 +90,7 @@ describe('GameEngine - Mort Subite (Sudden Death)', () => {
     for (let i = 0; i < DEFAULT_GAME_CONFIG.gameDurationTicks; i++) {
       engine.tick();
     }
-    
+
     const etat = engine.obtenirEtatActuel();
     // La case (1, 1) ne doit pas être un mur indestructible
     expect(etat.grid[1][1]).not.toBe(CellType.INDESTRUCTIBLE_WALL);
@@ -87,22 +99,22 @@ describe('GameEngine - Mort Subite (Sudden Death)', () => {
   it('devrait générer exactement n blocs en spirale selon le temps dépassé', () => {
     const ticksAvantSD = DEFAULT_GAME_CONFIG.gameDurationTicks;
     const intervalle = DEFAULT_GAME_CONFIG.suddenDeathDropIntervalTicks;
-    
+
     // On vise le dépôt de 3 blocs
-    const ticksVises = ticksAvantSD + (intervalle * 3);
-    
+    const ticksVises = ticksAvantSD + intervalle * 3;
+
     for (let i = 0; i < ticksVises; i++) {
       engine.tick();
     }
-    
+
     const etat = engine.obtenirEtatActuel();
-    
+
     // Attention, dans map.getGrid(), l'accès est grid[y][x]
     // La spirale part du haut, de gauche à droite : (1,1), (2,1), (3,1)
     expect(etat.grid[1][1]).toBe(CellType.INDESTRUCTIBLE_WALL);
     expect(etat.grid[1][2]).toBe(CellType.INDESTRUCTIBLE_WALL);
     expect(etat.grid[1][3]).toBe(CellType.INDESTRUCTIBLE_WALL);
-    
+
     // Le 4ème bloc (4,1) ne doit pas encore y être
     expect(etat.grid[1][4]).not.toBe(CellType.INDESTRUCTIBLE_WALL);
   });
@@ -110,14 +122,14 @@ describe('GameEngine - Mort Subite (Sudden Death)', () => {
   it('devrait éliminer un joueur se trouvant sur la case d un bloc qui tombe', () => {
     const ticksAvantSD = DEFAULT_GAME_CONFIG.gameDurationTicks;
     const intervalle = DEFAULT_GAME_CONFIG.suddenDeathDropIntervalTicks;
-    
+
     // On fait avancer jusqu'à la chute du premier bloc (qui tombe en 1,1)
     const ticksPour1Bloc = ticksAvantSD + intervalle;
-    
+
     for (let i = 0; i < ticksPour1Bloc; i++) {
       engine.tick();
     }
-    
+
     const etat = engine.obtenirEtatActuel();
     // Le joueur n'a pas bougé de (1,1), il doit être mort
     expect(etat.players['p1'].isAlive).toBe(false);
@@ -131,7 +143,7 @@ describe('GameEngine - Fin de partie (Game Over)', () => {
     engine = new GameEngine();
     engine.initPlayers([
       { id: 'p1', name: 'Alice', isReady: true },
-      { id: 'p2', name: 'Bob', isReady: true }
+      { id: 'p2', name: 'Bob', isReady: true },
     ]);
   });
 
@@ -152,7 +164,7 @@ describe('GameEngine - Fin de partie (Game Over)', () => {
     expect(state.status).toBe('FINISHED');
     expect(receivedPayload).toEqual({
       winnerId: 'p1',
-      winnerName: 'Alice'
+      winnerName: 'Alice',
     });
   });
 
@@ -174,8 +186,45 @@ describe('GameEngine - Fin de partie (Game Over)', () => {
     expect(state.status).toBe('FINISHED');
     expect(receivedPayload).toEqual({
       winnerId: null,
-      winnerName: null
+      winnerName: null,
     });
+  });
+});
+
+describe('GameEngine - Système de Scores', () => {
+  it('devrait initialiser les joueurs avec un score de 0', () => {
+    const engine = new GameEngine();
+    engine.initPlayers([
+      { id: 'p1', name: 'Alice', isReady: true },
+      { id: 'p2', name: 'Bob', isReady: true },
+    ]);
+
+    const state = engine.obtenirEtatActuel();
+    expect(state.players['p1'].score).toBe(0);
+    expect(state.players['p2'].score).toBe(0);
+  });
+
+  it('devrait attribuer des points (PICKUP_POWERUP) lorsqu un joueur ramasse un bonus', () => {
+    const engine = new GameEngine();
+    engine.initPlayers([
+      { id: 'p1', name: 'Alice', isReady: true },
+      { id: 'p2', name: 'Bob', isReady: true },
+    ]);
+
+    // Positionner p1 en (2, 1) et y déposer un power-up
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p1 = (engine as any).players.get('p1');
+    p1.position = { x: 2, y: 1 };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (engine as any).powerUps.push({
+      id: 'pu-1',
+      type: 'EXTRA_BOMB',
+      position: { x: 2, y: 1 },
+    });
+
+    engine.tick();
+
+    expect(p1.score).toBe(200); // SCORE_VALUES.PICKUP_POWERUP
   });
 });
 

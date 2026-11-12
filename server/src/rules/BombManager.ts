@@ -6,7 +6,8 @@ import {
     BombExplodedPayload,
     PowerUp,
     PowerUpType,
-    DEFAULT_GAME_CONFIG
+    DEFAULT_GAME_CONFIG,
+    SCORE_VALUES
 } from '@bomberman/shared';
 import { Map as GameMap } from '../map/Map.js';
 
@@ -156,6 +157,10 @@ export class BombManager {
                 if (cell === CellType.DESTRUCTIBLE_WALL) {
                     map.setCell(nx, ny, CellType.EMPTY);
                     this.tenterSpawnPowerUp(nx, ny, powerUps);
+                    const owner = players.get(bomb.ownerId);
+                    if (owner) {
+                        owner.score = (owner.score || 0) + SCORE_VALUES.DESTROY_WALL;
+                    }
                     break;
                 }
             }
@@ -174,6 +179,12 @@ export class BombManager {
                     if (player.lives <= 0) {
                         player.isAlive = false;
                         eliminatedPlayers.push(id);
+                        if (id !== bomb.ownerId) {
+                            const killer = players.get(bomb.ownerId);
+                            if (killer) {
+                                killer.score = (killer.score || 0) + SCORE_VALUES.ELIMINATE_PLAYER;
+                            }
+                        }
                     } else {
                         player.invulnerableUntilTick = currentTick + DEFAULT_GAME_CONFIG.invulnerabilityDurationTicks;
                     }
