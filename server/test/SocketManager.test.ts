@@ -364,4 +364,72 @@ describe('SocketManager - Tests d\'intégration réseau WebSocket', () => {
       expect(gameOverMsg.payload.winnerName).toBe('Player 1');
     }
   });
+
+  it('devrait répondre par une ERROR en cas de JSON mal formé', async () => {
+    const client = await createClient();
+    await client.waitForMessage((m) => m.type === 'WELCOME');
+
+    client.ws.send('invalid-json{{{');
+    const errorMsg = await client.waitForMessage((m) => m.type === 'ERROR');
+    expect(errorMsg.type).toBe('ERROR');
+    if (errorMsg.type === 'ERROR') {
+      expect(errorMsg.payload.message).toContain('Invalid JSON');
+    }
+  });
+
+  it('devrait gérer CREATE_ROOM et LIST_ROOMS via WebSocket', async () => {
+    const client = await createClient();
+    await client.waitForMessage((m) => m.type === 'WELCOME');
+
+    client.send({ type: 'CREATE_ROOM', payload: { name: 'Nouvelle Salle' } });
+    const createdMsg = await client.waitForMessage((m) => m.type === 'ROOM_CREATED');
+    expect(createdMsg.type).toBe('ROOM_CREATED');
+    if (createdMsg.type === 'ROOM_CREATED') {
+      expect(createdMsg.payload.roomId).toBeDefined();
+      expect(createdMsg.payload.name).toBe('Nouvelle Salle');
+    }
+
+    client.send({ type: 'LIST_ROOMS' });
+    const listMsg = await client.waitForMessage((m) => m.type === 'ROOM_LIST');
+    expect(listMsg.type).toBe('ROOM_LIST');
+    if (listMsg.type === 'ROOM_LIST') {
+      expect(listMsg.payload.rooms.length).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('devrait refuser JOIN avec ERROR si la partie est déjà en cours dans la salle', async () => {
+    const client1 = await createClient();
+    const client2 = await createClient();
+    const clientLate = await createClient();
+
+    client1.send({ type: 'JOIN', payload: { name: 'P1', roomId: 'SPEED-ROOM' } });
+    client2.send({ type: 'JOIN', payload: { name: 'P2', roomId: 'SPEED-ROOM' } });
+    await client1.waitForMessage((m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2);
+
+    client1.send({ type: 'READY', payload: { isReady: true } });
+    client2.send({ type: 'READY', payload: { isReady: true } });
+    await client1.waitForMessage((m) => m.type === 'GAME_START');
+
+    clientLate.send({ type: 'JOIN', payload: { name: 'Late', roomId: 'SPEED-ROOM' } });
+    const errorMsg = await clientLate.waitForMessage((m) => m.type === 'ERROR');
+    expect(errorMsg.type).toBe('ERROR');
+    if (errorMsg.type === 'ERROR') {
+      expect(errorMsg.payload.message).toContain('cours');
+    }
+  });
+
+  it('devrait diffuser un message à tous les clients via broadcast et exposer getRoomManager', async () => {
+    const client1 = await createClient();
+    const client2 = await createClient();
+
+    expect(socketManager.getRoomManager()).toBeDefined();
+
+    socketManager.broadcast({ type: 'PONG', payload: { timestamp: 9999 } });
+    const [p1, p2] = await Promise.all([
+      client1.waitForMessage((m) => m.type === 'PONG'),
+      client2.waitForMessage((m) => m.type === 'PONG')
+    ]);
+    expect(p1.type).toBe('PONG');
+    expect(p2.type).toBe('PONG');
+  });
 });

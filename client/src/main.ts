@@ -6,6 +6,7 @@ import { eventBus } from './core/EventBus';
 import { calculateMovementDelta } from './core/movement';
 import { InputManager } from './core/InputManager';
 import { SocketManager } from './network/SocketManager';
+import type { LobbyStatePayload } from '@bomberman/shared';
 
 // 1. Initialisation de l'affichage du Canvas
 // 1. Initialisation de l'affichage du Canvas et du HUD
@@ -156,12 +157,14 @@ btnJoinGame.addEventListener('click', () => {
   currentPseudo = enteredName && enteredName.length > 0 ? enteredName : 'Joueur 1';
   isMockMode = false;
 
+  const enteredRoom = (document.getElementById('room-id-input') as HTMLInputElement | null)?.value.trim();
+
   if (currentPlayerLabel) {
     currentPlayerLabel.textContent = `${currentPseudo} (Toi)`;
   }
 
   // Notifier le serveur WebSocket de l'arrivée du joueur
-  eventBus.emit('JOIN_LOBBY', { name: currentPseudo });
+  eventBus.emit('JOIN_LOBBY', { name: currentPseudo, roomId: enteredRoom || undefined });
 
   // Affichage du salon d'attente
   showScreen('lobby');
@@ -241,16 +244,7 @@ eventBus.on('WELCOME', (payload: unknown) => {
   }
 });
 
-interface LobbyPlayer {
-  id: string;
-  name: string;
-  isReady: boolean;
-}
 
-interface LobbyStatePayload {
-  players: LobbyPlayer[];
-  canStart: boolean;
-}
 
 eventBus.on('LOBBY_STATE', (payload: unknown) => {
   const data = payload as LobbyStatePayload;
