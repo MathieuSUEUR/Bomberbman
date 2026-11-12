@@ -143,6 +143,24 @@ describe('GameEngine - Tests unitaires et intégration des actions', () => {
 
       expect(getPlayer('p1').position).toEqual({ x: 1, y: 1 });
     });
+
+    it('ne devrait pas déplacer le joueur sur une case occupée par une bombe', () => {
+      setCell(2, 1, CellType.EMPTY);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (engine as any).bombManager.getBombs().push({
+        id: 'bomb-1',
+        ownerId: 'p2',
+        position: { x: 2, y: 1 },
+        range: 2,
+        placedAtTick: 0,
+        explodeAtTick: 50,
+      });
+
+      engine.ajouterAction({ playerId: 'p1', actionType: 'MOVE_RIGHT' });
+      engine.tick();
+
+      expect(getPlayer('p1').position).toEqual({ x: 1, y: 1 });
+    });
   });
 
   describe('Pose de bombes (Unitaires)', () => {

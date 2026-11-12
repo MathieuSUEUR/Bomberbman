@@ -58,10 +58,20 @@ export interface BombExplodedPayload {
   affectedCells: Position[];
 }
 
+//résumé du score d'un joueur en fin de partie
+export interface PlayerScoreSummary {
+  id: string;
+  name: string;
+  score: number;
+  isAlive: boolean;
+  rank: number;
+}
+
 //payload pour GAME_OVER
 export interface GameOverPayload {
   winnerId: string | null;
   winnerName?: string | null;
+  scores?: PlayerScoreSummary[];
 }
 
 export type ServerMessage =

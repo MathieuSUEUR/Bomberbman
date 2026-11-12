@@ -162,10 +162,12 @@ describe('GameEngine - Fin de partie (Game Over)', () => {
     const state = engine.tick();
 
     expect(state.status).toBe('FINISHED');
-    expect(receivedPayload).toEqual({
-      winnerId: 'p1',
-      winnerName: 'Alice',
-    });
+    expect(receivedPayload).toEqual(
+      expect.objectContaining({
+        winnerId: 'p1',
+        winnerName: 'Alice',
+      }),
+    );
   });
 
   it('devrait émettre gameOver avec winnerId null en cas de match nul (0 survivant)', () => {
@@ -184,9 +186,63 @@ describe('GameEngine - Fin de partie (Game Over)', () => {
     const state = engine.tick();
 
     expect(state.status).toBe('FINISHED');
-    expect(receivedPayload).toEqual({
-      winnerId: null,
-      winnerName: null,
+    expect(receivedPayload).toEqual(
+      expect.objectContaining({
+        winnerId: null,
+        winnerName: null,
+      }),
+    );
+  });
+  it('devrait inclure le tableau des scores ordonné (leaderboard) dans le payload gameOver', () => {
+    const engine = new GameEngine();
+    engine.initPlayers([
+      { id: 'p1', name: 'Alice', isReady: true },
+      { id: 'p2', name: 'Bob', isReady: true },
+      { id: 'p3', name: 'Charlie', isReady: true },
+    ]);
+
+    // Attribuer des scores
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const internalPlayers = (engine as any).players as Map<string, any>;
+    internalPlayers.get('p1').score = 300;
+    internalPlayers.get('p2').score = 500;
+    internalPlayers.get('p3').score = 100;
+
+    // Éliminer p2 et p3 pour que p1 gagne (malgré un score inférieur à p2)
+    internalPlayers.get('p2').isAlive = false;
+    internalPlayers.get('p3').isAlive = false;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let receivedPayload: any = null;
+    engine.on('gameOver', (payload) => {
+      receivedPayload = payload;
+    });
+
+    engine.tick();
+
+    expect(receivedPayload.winnerId).toBe('p1');
+    expect(receivedPayload.scores).toHaveLength(3);
+    expect(receivedPayload.scores[0]).toEqual({
+      id: 'p1',
+      name: 'Alice',
+      score: 300,
+      isAlive: true,
+      rank: 1,
+    });
+    // Bob a plus de points que Charlie, donc 2e
+    expect(receivedPayload.scores[1]).toEqual({
+      id: 'p2',
+      name: 'Bob',
+      score: 500,
+      isAlive: false,
+      rank: 2,
+    });
+    expect(receivedPayload.scores[2]).toEqual({
+      id: 'p3',
+      name: 'Charlie',
+      score: 100,
+      isAlive: false,
+      rank: 3,
     });
   });
 });
@@ -286,10 +342,12 @@ describe('GameEngine - Déconnexion d un joueur', () => {
     engine.deconnecterJoueur('p2');
 
     expect(eliminatedPayload).toEqual({ playerId: 'p2' });
-    expect(gameOverPayload).toEqual({
-      winnerId: 'p1',
-      winnerName: 'Alice',
-    });
+    expect(gameOverPayload).toEqual(
+      expect.objectContaining({
+        winnerId: 'p1',
+        winnerName: 'Alice',
+      }),
+    );
     expect(engine.obtenirEtatActuel().status).toBe('FINISHED');
     expect(engine.obtenirEtatActuel().players['p2'].isAlive).toBe(false);
   });
