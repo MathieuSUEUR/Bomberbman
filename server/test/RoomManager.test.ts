@@ -254,6 +254,20 @@ describe('RoomManager - Tests unitaires du gestionnaire de salles', () => {
     expect(roomManager.getRoom('default')).toBeDefined();
   });
 
+  it('devrait retourner une erreur si room.addPlayer échoue lors du joinRoom', () => {
+    const room = roomManager.getOrCreateRoom('FAIL-ROOM', 'Salle Fail');
+    vi.spyOn(room, 'addPlayer').mockReturnValueOnce(false);
+    const res = roomManager.joinRoom('c1', mockWs, 'Bob', 'FAIL-ROOM');
+    expect(res.success).toBe(false);
+    expect(res.reason).toBe('Impossible de rejoindre la salle.');
+  });
+
+  it('devrait retourner undefined lors de leaveRoom si la salle est introuvable dans la map des rooms', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (roomManager as any).clientRoomMap.set('orphan-client', 'GHOST-ROOM');
+    expect(roomManager.leaveRoom('orphan-client')).toBeUndefined();
+  });
+
   it('devrait détruire toutes les salles lors de destroyAll', () => {
     roomManager.getOrCreateRoom('default', 'Salon Principal', undefined, true);
     roomManager.createRoom({ id: 'R1' });
