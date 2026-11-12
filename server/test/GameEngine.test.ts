@@ -228,3 +228,86 @@ describe('GameEngine - Système de Scores', () => {
   });
 });
 
+describe('GameEngine - Réinitialisation (reset)', () => {
+  it('devrait réinitialiser complètement l état du moteur pour une nouvelle partie', () => {
+    const engine = new GameEngine();
+    engine.initPlayers([
+      { id: 'p1', name: 'Alice', isReady: true },
+      { id: 'p2', name: 'Bob', isReady: true },
+    ]);
+
+    // Faire avancer les ticks
+    engine.tick();
+    engine.tick();
+
+    // Poser une bombe
+    engine.ajouterAction({ playerId: 'p1', actionType: 'PLACE_BOMB' });
+    engine.tick();
+
+    expect(engine.obtenirEtatActuel().tick).toBeGreaterThan(0);
+    expect(engine.obtenirEtatActuel().status).toBe('IN_PROGRESS');
+
+    // Réinitialisation
+    engine.reset();
+
+    const etat = engine.obtenirEtatActuel();
+    expect(etat.tick).toBe(0);
+    expect(etat.status).toBe('WAITING');
+    expect(Object.keys(etat.players)).toHaveLength(0);
+    expect(etat.bombs).toHaveLength(0);
+    expect(etat.explosions).toHaveLength(0);
+    expect(etat.powerUps).toHaveLength(0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((engine as any).gameLoopInterval).toBeNull();
+  });
+});
+
+describe('GameEngine - Déconnexion d un joueur', () => {
+  it('devrait éliminer le joueur déconnecté et déclencher gameOver si un seul joueur survit', () => {
+    const engine = new GameEngine();
+    engine.initPlayers([
+      { id: 'p1', name: 'Alice', isReady: true },
+      { id: 'p2', name: 'Bob', isReady: true },
+    ]);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let eliminatedPayload: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let gameOverPayload: any = null;
+
+    engine.on('playerEliminated', (payload) => {
+      eliminatedPayload = payload;
+    });
+    engine.on('gameOver', (payload) => {
+      gameOverPayload = payload;
+    });
+
+    // Bob se déconnecte pendant la partie
+    engine.deconnecterJoueur('p2');
+
+    expect(eliminatedPayload).toEqual({ playerId: 'p2' });
+    expect(gameOverPayload).toEqual({
+      winnerId: 'p1',
+      winnerName: 'Alice',
+    });
+    expect(engine.obtenirEtatActuel().status).toBe('FINISHED');
+    expect(engine.obtenirEtatActuel().players['p2'].isAlive).toBe(false);
+  });
+
+  it('ne devrait rien faire si l identifiant du joueur déconnecté n existe pas', () => {
+    const engine = new GameEngine();
+    engine.initPlayers([
+      { id: 'p1', name: 'Alice', isReady: true },
+      { id: 'p2', name: 'Bob', isReady: true },
+    ]);
+
+    let emitted = false;
+    engine.on('playerEliminated', () => {
+      emitted = true;
+    });
+
+    engine.deconnecterJoueur('inconnu');
+    expect(emitted).toBe(false);
+    expect(engine.obtenirEtatActuel().status).toBe('IN_PROGRESS');
+  });
+});

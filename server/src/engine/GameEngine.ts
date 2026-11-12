@@ -149,6 +149,7 @@ export class GameEngine extends EventEmitter {
 
     /** Cree les joueurs du lobby a leurs positions de depart et lance la boucle de jeu. */
     public initPlayers(lobbyPlayers: LobbyPlayer[]): void {
+        this.players.clear();
         const startPositions = getSpawnPositions();
 
         lobbyPlayers.forEach((player, index) => {
@@ -198,6 +199,55 @@ export class GameEngine extends EventEmitter {
             clearInterval(this.gameLoopInterval);
             this.gameLoopInterval = null;
             console.info('GameEngine: boucle de jeu arretee');
+        }
+    }
+
+    /**
+     * Réinitialise complètement le moteur de jeu pour une nouvelle partie :
+     * arrête la boucle active, régénère une carte neuve, vide les bombes,
+     * explosions, bonus, joueurs et actions, et remet le statut à 'WAITING'.
+     */
+    public reset(): void {
+        this.stopGameLoop();
+        this.tickCount = 0;
+        this.status = 'WAITING';
+        this.map = generateMap();
+        this.bombManager = new BombManager(DEFAULT_GAME_CONFIG.explosionDurationTicks);
+        this.powerUpManager = new PowerUpManager();
+        this.powerUps.length = 0;
+        this.players.clear();
+        this.actionFile = [];
+        this.suddenDeathIndex = 0;
+        this.suddenDeathPositions = this.generateSpiralPositions(DEFAULT_GAME_CONFIG.gridWidth, DEFAULT_GAME_CONFIG.gridHeight);
+    }
+
+    /**
+     * Gère la déconnexion d'un joueur en cours de partie.
+     * Le joueur est marqué comme éliminé et la fin de partie est vérifiée.
+     */
+    public deconnecterJoueur(playerId: string): void {
+        const player = this.players.get(playerId);
+        if (!player) return;
+
+        if (player.isAlive) {
+            player.isAlive = false;
+            player.lives = 0;
+            this.emit('playerEliminated', { playerId });
+        }
+
+        if (this.status === 'IN_PROGRESS' && this.checkGameOver()) {
+            this.status = 'FINISHED';
+            this.stopGameLoop();
+
+            const livingPlayers = Array.from(this.players.values()).filter(p => p.isAlive);
+            const winner = livingPlayers.length === 1 ? livingPlayers[0] : null;
+
+            const gameOverPayload: GameOverPayload = {
+                winnerId: winner ? winner.id : null,
+                winnerName: winner ? winner.name : null
+            };
+
+            this.emit('gameOver', gameOverPayload);
         }
     }
 

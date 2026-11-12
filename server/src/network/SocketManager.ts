@@ -80,6 +80,10 @@ export class SocketManager {
         type: 'GAME_OVER',
         payload
       });
+      this.lobbyPlayers.forEach(p => {
+        p.isReady = false;
+      });
+      this.broadcastLobbyState();
     });
   }
 
@@ -119,6 +123,10 @@ export class SocketManager {
       this.clients.delete(clientId);
       this.lobbyPlayers = this.lobbyPlayers.filter(p => p.id !== clientId);
       this.broadcastLobbyState(); // Mise à jour de l'état du lobby pour les autres joueurs
+
+      if (this.engine.obtenirEtatActuel().status === 'IN_PROGRESS') {
+        this.engine.deconnecterJoueur(clientId);
+      }
     });
   }
 
@@ -199,7 +207,12 @@ export class SocketManager {
   private checkGameStart() {
     const canStart = this.lobbyPlayers.length >= 2 && this.lobbyPlayers.every(p => p.isReady);
 
-    if (canStart && this.engine.obtenirEtatActuel().status === 'WAITING') {
+    const engineStatus = this.engine.obtenirEtatActuel().status;
+    if (canStart && (engineStatus === 'WAITING' || engineStatus === 'FINISHED')) {
+      if (engineStatus === 'FINISHED') {
+        this.engine.reset();
+      }
+
       // Transmission de la position et des informations des joueurs au moteur
       this.engine.initPlayers(this.lobbyPlayers);
 
