@@ -3,6 +3,7 @@ import {
   CellType,
   DEFAULT_GAME_CONFIG,
   PlayerState,
+  SCORE_VALUES,
 } from '@bomberman/shared';
 import { Map as GameMap } from '../src/map/Map.js';
 import { BombManager } from '../src/rules/BombManager.js';
@@ -41,7 +42,9 @@ function makePlayer(
     bombRechargeTicks: DEFAULT_GAME_CONFIG.bombRechargeTicks,
     nextBombRechargeTick: null,
     speed: 1,
+    nextMoveTick: 0,
     invulnerableUntilTick: 0,
+    score: 0,
     ...overrides,
   };
 }
@@ -160,5 +163,56 @@ describe('BombManager', () => {
     bombManager.tick(70, map, players, []);
     expect(p1.bombStock).toBe(2);
     expect(p1.nextBombRechargeTick).toBeNull();
+  });
+
+  it('attribue des points (DESTROY_WALL) au poseur lorsqu un mur destructible est detruit', () => {
+    const bombManager = createBombManager();
+    const map = createEmptyGrid();
+    map.setCell(4, 3, CellType.DESTRUCTIBLE_WALL);
+    const p1 = makePlayer('p1', 3, 3);
+    const players = new Map<string, PlayerState>([['p1', p1]]);
+
+    bombManager.placerBombe(p1, 10);
+    // Eloigner p1
+    p1.position = { x: 10, y: 10 };
+
+    // Tick au moment de l'explosion
+    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players, []);
+
+    expect(map.get(4, 3)).toBe(CellType.EMPTY);
+    expect(p1.score).toBe(SCORE_VALUES.DESTROY_WALL);
+  });
+
+  it('attribue des points (ELIMINATE_PLAYER) lorsqu un adversaire est elimine par la bombe', () => {
+    const bombManager = createBombManager();
+    const map = createEmptyGrid();
+    const killer = makePlayer('killer', 3, 3);
+    const victim = makePlayer('victim', 4, 3);
+    const players = new Map<string, PlayerState>([
+      ['killer', killer],
+      ['victim', victim]
+    ]);
+
+    bombManager.placerBombe(killer, 10);
+    killer.position = { x: 10, y: 10 }; // killer se met a l'abri
+
+    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players, []);
+
+    expect(victim.isAlive).toBe(false);
+    expect(killer.score).toBe(SCORE_VALUES.ELIMINATE_PLAYER);
+  });
+
+  it('ne donne aucun point d elimination en cas de suicide', () => {
+    const bombManager = createBombManager();
+    const map = createEmptyGrid();
+    const suicidal = makePlayer('p1', 3, 3, { score: 10 });
+    const players = new Map<string, PlayerState>([['p1', suicidal]]);
+
+    bombManager.placerBombe(suicidal, 10);
+    // suicidal reste sur place
+    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players, []);
+
+    expect(suicidal.isAlive).toBe(false);
+    expect(suicidal.score).toBe(10); // Aucun point ajoute
   });
 });
