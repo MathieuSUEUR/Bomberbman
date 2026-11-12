@@ -12,6 +12,7 @@ import {
     Direction,
     Position,
     GameOverPayload,
+    PlayerScoreSummary,
     SCORE_VALUES
 } from '@bomberman/shared';
 
@@ -138,7 +139,8 @@ export class GameEngine extends EventEmitter {
 
             const gameOverPayload: GameOverPayload = {
                 winnerId: winner ? winner.id : null,
-                winnerName: winner ? winner.name : null
+                winnerName: winner ? winner.name : null,
+                scores: this.buildLeaderboard(winner ? winner.id : null)
             };
 
             this.emit('gameOver', gameOverPayload);
@@ -244,7 +246,8 @@ export class GameEngine extends EventEmitter {
 
             const gameOverPayload: GameOverPayload = {
                 winnerId: winner ? winner.id : null,
-                winnerName: winner ? winner.name : null
+                winnerName: winner ? winner.name : null,
+                scores: this.buildLeaderboard(winner ? winner.id : null)
             };
 
             this.emit('gameOver', gameOverPayload);
@@ -420,6 +423,36 @@ export class GameEngine extends EventEmitter {
      */
     private playerPlaceBomb(player: PlayerState): void {
         this.bombManager.placerBombe(player, this.tickCount);
+    }
+
+    /**
+     * Construit le tableau des scores ordonné pour la fin de partie.
+     * Le vainqueur éventuel est classé 1er, puis les autres joueurs par score décroissant.
+     * @param winnerId L'identifiant du gagnant ou null en cas de match nul
+     */
+    private buildLeaderboard(winnerId: string | null): PlayerScoreSummary[] {
+        const playersList = Array.from(this.players.values()).map(p => ({
+            id: p.id,
+            name: p.name,
+            score: p.score ?? 0,
+            isAlive: p.isAlive
+        }));
+
+        playersList.sort((a, b) => {
+            if (winnerId) {
+                if (a.id === winnerId) return -1;
+                if (b.id === winnerId) return 1;
+            }
+            if (a.isAlive !== b.isAlive) {
+                return a.isAlive ? -1 : 1;
+            }
+            return b.score - a.score;
+        });
+
+        return playersList.map((p, index) => ({
+            ...p,
+            rank: index + 1
+        }));
     }
 
     /**

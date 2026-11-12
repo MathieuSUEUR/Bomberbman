@@ -134,6 +134,7 @@ export class BombManager {
     ): { bombPayload: BombExplodedPayload, eliminatedPlayers: string[] } {
         const cellsExplosion = [bomb.position];
         const eliminatedPlayers: string[] = [];
+        const existingPowerUpIds = new Set(powerUps.map(p => p.id));
 
         const directions = [
             { x: 1, y: 0 },
@@ -169,6 +170,14 @@ export class BombManager {
         const expiresAtTick = currentTick + this.explosionDurationTicks;
         for (const pos of cellsExplosion) {
             this.explosions.push({ position: pos, expiresAtTick });
+
+            // Les bonus prealablement au sol touches par le souffle de l'explosion sont detruits
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                const pu = powerUps[i];
+                if (existingPowerUpIds.has(pu.id) && pu.position.x === pos.x && pu.position.y === pos.y) {
+                    powerUps.splice(i, 1);
+                }
+            }
 
             for (const [id, player] of players) {
                 if (player.isAlive && player.position.x === pos.x && player.position.y === pos.y) {

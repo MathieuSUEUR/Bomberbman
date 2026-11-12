@@ -3,6 +3,8 @@ import {
   CellType,
   DEFAULT_GAME_CONFIG,
   PlayerState,
+  PowerUp,
+  PowerUpType,
   SCORE_VALUES,
 } from '@bomberman/shared';
 import { Map as GameMap } from '../src/map/Map.js';
@@ -214,5 +216,25 @@ describe('BombManager', () => {
 
     expect(suicidal.isAlive).toBe(false);
     expect(suicidal.score).toBe(10); // Aucun point ajoute
+  });
+  it('détruit les power-ups au sol touchés par le souffle d une explosion', () => {
+    const bombManager = createBombManager();
+    const map = createEmptyGrid();
+    const p1 = makePlayer('p1', 3, 3);
+    const players = new Map<string, PlayerState>([['p1', p1]]);
+    const powerUps: PowerUp[] = [
+      { id: 'pu-1', position: { x: 4, y: 3 }, type: PowerUpType.EXTRA_BOMB },
+      { id: 'pu-2', position: { x: 10, y: 10 }, type: PowerUpType.SPEED_UP }, // Hors portée
+    ];
+
+    bombManager.placerBombe(p1, 10);
+    p1.position = { x: 10, y: 10 }; // S'éloigner
+
+    // Explosion au tick 10 + countdown
+    bombManager.tick(10 + DEFAULT_GAME_CONFIG.bombCountdownTicks, map, players, powerUps);
+
+    // pu-1 a été détruit par l'explosion, pu-2 reste intact
+    expect(powerUps.find((p) => p.id === 'pu-1')).toBeUndefined();
+    expect(powerUps.find((p) => p.id === 'pu-2')).toBeDefined();
   });
 });
