@@ -61,14 +61,17 @@ describe("Écran d'Accueil et Lobby - Tests de structure et événements", () =>
     expect(capturedLobbyState).toEqual(mockState);
   });
 
-  it("devrait propager l'événement JOIN_LOBBY via EventBus", () => {
-    let joinedName = '';
+  it("devrait propager l'événement JOIN_LOBBY avec roomId optionnel via EventBus", () => {
+    let capturedPayload: { name: string; roomId?: string } | null = null;
     eventBus.on('JOIN_LOBBY', (payload: unknown) => {
-      const data = payload as { name: string };
-      joinedName = data.name;
+      capturedPayload = payload as { name: string; roomId?: string };
     });
 
-    eventBus.emit('JOIN_LOBBY', { name: 'PlayerOne' });
-    expect(joinedName).toBe('PlayerOne');
+    eventBus.emit('JOIN_LOBBY', { name: 'PlayerOne', roomId: 'ROOM-ALPHA' });
+    expect(capturedPayload).toEqual({ name: 'PlayerOne', roomId: 'ROOM-ALPHA' });
+  });
+
+  it('devrait contenir le champ optionnel pour le code de salon dans l écran d accueil', () => {
+    expect(htmlContent).toContain('id="room-id-input"');
   });
 });

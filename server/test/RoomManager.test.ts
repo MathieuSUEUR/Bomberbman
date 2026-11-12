@@ -1,245 +1,265 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { WebSocket } from 'ws';
-import { SocketManager } from '../src/network/SocketManager.js';
 import { RoomManager } from '../src/network/RoomManager.js';
-import { ServerMessage, ClientMessage } from '@bomberman/shared';
+import { Room } from '../src/network/Room.js';
+import { GameEngine } from '../src/engine/GameEngine.js';
 
-class TestClient {
-  public ws: WebSocket;
-  public playerId: string = '';
-  private messages: ServerMessage[] = [];
-  private waiters: Array<{ predicate: (msg: ServerMessage) => boolean; resolve: (msg: ServerMessage) => void }> = [];
+describe('Room - Tests unitaires de la classe Room', () => {
+  let room: Room;
+  let mockWs: WebSocket;
+  let sentData: string[];
 
-  constructor(port: number) {
-    this.ws = new WebSocket(`ws://localhost:${port}`);
-    this.ws.on('message', (data) => {
-      const msg = JSON.parse(data.toString()) as ServerMessage;
-      if (msg.type === 'WELCOME') {
-        this.playerId = msg.payload.playerId;
-      }
-      const index = this.waiters.findIndex((w) => w.predicate(msg));
-      if (index !== -1) {
-        const waiter = this.waiters.splice(index, 1)[0];
-        waiter.resolve(msg);
-      } else {
-        this.messages.push(msg);
-      }
-    });
-  }
+  beforeEach(() => {
+    sentData = [];
+    mockWs = {
+      readyState: WebSocket.OPEN,
+      send: vi.fn((data: string) => {
+        sentData.push(data);
+      })
+    } as unknown as WebSocket;
 
-  public waitForOpen(): Promise<void> {
-    if (this.ws.readyState === WebSocket.OPEN) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      this.ws.once('open', () => resolve());
-      this.ws.once('error', reject);
-    });
-  }
+    room = new Room('test-room', 'Salle de test');
+  });
 
-  public waitForMessage(predicate: (msg: ServerMessage) => boolean): Promise<ServerMessage> {
-    const existingIndex = this.messages.findIndex(predicate);
-    if (existingIndex !== -1) {
-      return Promise.resolve(this.messages.splice(existingIndex, 1)[0]);
-    }
-    return new Promise((resolve) => {
-      this.waiters.push({ predicate, resolve });
-    });
-  }
+  afterEach(() => {
+    room.destroy();
+  });
 
-  public send(msg: ClientMessage) {
-    this.ws.send(JSON.stringify(msg));
-  }
+  it('devrait initialiser correctement la salle avec valeurs par défaut ou personnalisées', () => {
+    expect(room.id).toBe('test-room');
+    expect(room.name).toBe('Salle de test');
+    expect(room.isPermanent).toBe(false);
+    expect(room.maxPlayers).toBe(4);
+    expect(room.isEmpty()).toBe(true);
+    expect(room.canJoin()).toBe(true);
 
-  public terminate() {
-    this.ws.terminate();
-  }
-}
+    const defaultRoom = new Room('default');
+    expect(defaultRoom.name).toBe('Salon Principal');
+
+    const randomRoom = new Room('ABC');
+    expect(randomRoom.name).toBe('Salon ABC');
+  });
+
+  it('devrait ajouter un joueur et diffuser le LOBBY_STATE', () => {
+    const added = room.addPlayer('p1', mockWs, 'Alice');
+    expect(added).toBe(true);
+    expect(room.getLobbyPlayers().length).toBe(1);
+    expect(room.isEmpty()).toBe(false);
+
+    expect(mockWs.send).toHaveBeenCalled();
+    const lastMsg = JSON.parse(sentData[sentData.length - 1]);
+    expect(lastMsg.type).toBe('LOBBY_STATE');
+    expect(lastMsg.payload.roomId).toBe('test-room');
+    expect(lastMsg.payload.players[0].name).toBe('Alice');
+  });
+
+  it('devrait refuser addPlayer si canJoin est faux', () => {
+    const fullRoom = new Room('full', 'Pleine', new GameEngine(), false, 1);
+    expect(fullRoom.addPlayer('p1', mockWs, 'Alice')).toBe(true);
+    // 2ème joueur alors que maxPlayers = 1 -> canJoin est faux
+    expect(fullRoom.addPlayer('p2', mockWs, 'Bob')).toBe(false);
+  });
+
+  it('devrait retirer un joueur et mettre à jour le lobby', () => {
+    room.addPlayer('p1', mockWs, 'Alice');
+    room.removePlayer('p1');
+    expect(room.getLobbyPlayers().length).toBe(0);
+    expect(room.isEmpty()).toBe(true);
+  });
+
+  it('devrait déconnecter le joueur du GameEngine si une partie est en cours lors du retrait', () => {
+    const engine = room.engine;
+    // Forcer le status en IN_PROGRESS
+    (engine as unknown as { status: string }).status = 'IN_PROGRESS';
+    const spyDeconnecter = vi.spyOn(engine, 'deconnecterJoueur');
+
+    room.addPlayer('p1', mockWs, 'Alice');
+    room.removePlayer('p1');
+
+    expect(spyDeconnecter).toHaveBeenCalledWith('p1');
+  });
+
+  it('devrait modifier l état prêt d un joueur et tenter de lancer la partie', () => {
+    room.addPlayer('p1', mockWs, 'Alice');
+    room.setPlayerReady('p1', true);
+    expect(room.getLobbyPlayers()[0].isReady).toBe(true);
+
+    // Joueur inconnu : ne doit rien faire
+    room.setPlayerReady('unknown', true);
+  });
+
+  it('devrait lancer la partie quand 2 joueurs sont prêts', () => {
+    const ws2 = {
+      readyState: WebSocket.OPEN,
+      send: vi.fn()
+    } as unknown as WebSocket;
+
+    room.addPlayer('p1', mockWs, 'Alice');
+    room.addPlayer('p2', ws2, 'Bob');
+
+    room.setPlayerReady('p1', true);
+    expect(room.engine.obtenirEtatActuel().status).toBe('WAITING');
+
+    room.setPlayerReady('p2', true);
+    expect(room.engine.obtenirEtatActuel().status).toBe('IN_PROGRESS');
+  });
+
+  it('devrait réinitialiser l engine si checkGameStart est déclenché après FINISHED', () => {
+    const ws2 = {
+      readyState: WebSocket.OPEN,
+      send: vi.fn()
+    } as unknown as WebSocket;
+
+    room.addPlayer('p1', mockWs, 'Alice');
+    room.addPlayer('p2', ws2, 'Bob');
+
+    (room.engine as unknown as { status: string }).status = 'FINISHED';
+    const spyReset = vi.spyOn(room.engine, 'reset');
+
+    room.setPlayerReady('p1', true);
+    room.setPlayerReady('p2', true);
+
+    expect(spyReset).toHaveBeenCalled();
+  });
+
+  it('devrait transmettre les actions au GameEngine', () => {
+    const spyAction = vi.spyOn(room.engine, 'ajouterAction');
+    room.handleAction('p1', 'MOVE_UP');
+    expect(spyAction).toHaveBeenCalledWith({ playerId: 'p1', actionType: 'MOVE_UP' });
+  });
+
+  it('devrait propager les événements du GameEngine aux clients', () => {
+    room.addPlayer('p1', mockWs, 'Alice');
+    sentData = [];
+
+    room.engine.emit('bombExploded', { bombId: 'b1', x: 1, y: 1, affectedCells: [] });
+    expect(sentData.some((d) => JSON.parse(d).type === 'BOMB_EXPLODED')).toBe(true);
+
+    room.engine.emit('playerEliminated', { playerId: 'p1' });
+    expect(sentData.some((d) => JSON.parse(d).type === 'PLAYER_ELIMINATED')).toBe(true);
+
+    room.engine.emit('gameOver', { winnerId: 'p1', winnerName: 'Alice', scores: [] });
+    expect(sentData.some((d) => JSON.parse(d).type === 'GAME_OVER')).toBe(true);
+  });
+
+  it('devrait ignorer l envoi de messages si le WebSocket n est pas ouvert', () => {
+    const closedWs = {
+      readyState: WebSocket.CLOSED,
+      send: vi.fn()
+    } as unknown as WebSocket;
+
+    room.addPlayer('p2', closedWs, 'Bob');
+    room.broadcast({ type: 'PONG', payload: { timestamp: 123 } });
+    expect(closedWs.send).not.toHaveBeenCalled();
+  });
+
+  it('devrait générer un getSummary complet', () => {
+    room.addPlayer('p1', mockWs, 'Alice');
+    const summary = room.getSummary();
+    expect(summary.id).toBe('test-room');
+    expect(summary.name).toBe('Salle de test');
+    expect(summary.playerCount).toBe(1);
+    expect(summary.maxPlayers).toBe(4);
+    expect(summary.canJoin).toBe(true);
+    expect(summary.status).toBe('WAITING');
+  });
+});
 
 describe('RoomManager - Tests unitaires du gestionnaire de salles', () => {
   let roomManager: RoomManager;
+  let mockWs: WebSocket;
 
   beforeEach(() => {
     roomManager = new RoomManager();
+    mockWs = {
+      readyState: WebSocket.OPEN,
+      send: vi.fn()
+    } as unknown as WebSocket;
   });
 
   afterEach(() => {
     roomManager.destroyAll();
   });
 
-  it('devrait créer une salle avec ID et nom par défaut ou personnalisés', () => {
+  it('devrait créer une salle personnalisée ou par défaut', () => {
     const defaultRoom = roomManager.getOrCreateRoom('default', 'Salon Principal', undefined, true);
     expect(defaultRoom.id).toBe('default');
-    expect(defaultRoom.name).toBe('Salon Principal');
     expect(defaultRoom.isPermanent).toBe(true);
 
-    const customRoom = roomManager.createRoom({ id: 'VIP-1', name: 'Salon VIP' });
-    expect(customRoom.id).toBe('VIP-1');
+    const customRoom = roomManager.createRoom({ id: 'VIP', name: 'Salon VIP' });
+    expect(customRoom.id).toBe('VIP');
     expect(customRoom.name).toBe('Salon VIP');
-    expect(customRoom.isPermanent).toBe(false);
+
+    const randomRoom = roomManager.createRoom();
+    expect(randomRoom.id.startsWith('ROOM-')).toBe(true);
   });
 
-  it('devrait lister les salles avec leurs résumés', () => {
+  it('devrait retourner la salle par défaut via getDefaultRoom', () => {
     roomManager.getOrCreateRoom('default', 'Salon Principal', undefined, true);
-    roomManager.createRoom({ id: 'ROOM-1', name: 'Salle 1' });
-
-    const rooms = roomManager.listRooms();
-    expect(rooms.length).toBe(2);
-    expect(rooms.map((r) => r.id)).toContain('default');
-    expect(rooms.map((r) => r.id)).toContain('ROOM-1');
+    expect(roomManager.getDefaultRoom()?.id).toBe('default');
   });
 
-  it('devrait supprimer une salle non-permanente quand le dernier joueur quitte', () => {
-    const mockWs = { send: () => {}, readyState: 1 } as unknown as WebSocket;
-    const res = roomManager.joinRoom('client-1', mockWs, 'Alice', 'TEMP-ROOM');
-    expect(res.success).toBe(true);
-    expect(roomManager.getRoom('TEMP-ROOM')).toBeDefined();
-
-    roomManager.leaveRoom('client-1');
-    expect(roomManager.getRoom('TEMP-ROOM')).toBeUndefined();
-  });
-
-  it('ne devrait JAMAIS supprimer la salle par défaut même vide', () => {
-    const mockWs = { send: () => {}, readyState: 1 } as unknown as WebSocket;
+  it('devrait lister toutes les salles actives', () => {
     roomManager.getOrCreateRoom('default', 'Salon Principal', undefined, true);
-    roomManager.joinRoom('client-1', mockWs, 'Bob', 'default');
-    roomManager.leaveRoom('client-1');
+    roomManager.createRoom({ id: 'R1', name: 'Salle 1' });
+    const list = roomManager.listRooms();
+    expect(list.length).toBe(2);
+    expect(list.map((r) => r.id)).toContain('default');
+    expect(list.map((r) => r.id)).toContain('R1');
+  });
+
+  it('devrait faire quitter automatiquement l ancienne salle lors d un changement de salle', () => {
+    const join1 = roomManager.joinRoom('c1', mockWs, 'Alice', 'ROOM-1');
+    expect(join1.success).toBe(true);
+    expect(roomManager.getRoomByClientId('c1')?.id).toBe('ROOM-1');
+
+    const join2 = roomManager.joinRoom('c1', mockWs, 'Alice', 'ROOM-2');
+    expect(join2.success).toBe(true);
+    expect(roomManager.getRoomByClientId('c1')?.id).toBe('ROOM-2');
+    // ROOM-1 est supprimée car elle est devenue vide et n est pas permanente
+    expect(roomManager.getRoom('ROOM-1')).toBeUndefined();
+  });
+
+  it('devrait refuser l entrée dans une salle pleine', () => {
+    const room = roomManager.getOrCreateRoom('FULL', 'Salle Pleine');
+    for (let i = 1; i <= 4; i++) {
+      expect(roomManager.joinRoom(`p${i}`, mockWs, `Joueur ${i}`, 'FULL').success).toBe(true);
+    }
+    expect(room.getLobbyPlayers().length).toBe(4);
+
+    const fifth = roomManager.joinRoom('p5', mockWs, 'Joueur 5', 'FULL');
+    expect(fifth.success).toBe(false);
+    expect(fifth.reason).toContain('complète');
+  });
+
+  it('devrait refuser l entrée si la partie est en cours', () => {
+    const room = roomManager.getOrCreateRoom('IN_GAME', 'En jeu');
+    (room.engine as unknown as { status: string }).status = 'IN_PROGRESS';
+
+    const res = roomManager.joinRoom('c1', mockWs, 'Alice', 'IN_GAME');
+    expect(res.success).toBe(false);
+    expect(res.reason).toContain('cours');
+  });
+
+  it('devrait gérer leaveRoom pour un client inexistant ou déconnecté', () => {
+    expect(roomManager.leaveRoom('unknown')).toBeUndefined();
+    expect(roomManager.getRoomByClientId('unknown')).toBeUndefined();
+  });
+
+  it('ne devrait jamais supprimer la salle par défaut même vide', () => {
+    roomManager.getOrCreateRoom('default', 'Salon Principal', undefined, true);
+    roomManager.joinRoom('c1', mockWs, 'Alice', 'default');
+    roomManager.leaveRoom('c1');
 
     expect(roomManager.getRoom('default')).toBeDefined();
   });
 
-  it('devrait refuser un 5ème joueur quand la salle est pleine (max 4)', () => {
-    const mockWs = { send: () => {}, readyState: 1 } as unknown as WebSocket;
-    for (let i = 1; i <= 4; i++) {
-      const res = roomManager.joinRoom(`player-${i}`, mockWs, `Joueur ${i}`, 'FULL-ROOM');
-      expect(res.success).toBe(true);
-    }
+  it('devrait détruire toutes les salles lors de destroyAll', () => {
+    roomManager.getOrCreateRoom('default', 'Salon Principal', undefined, true);
+    roomManager.createRoom({ id: 'R1' });
+    roomManager.createRoom({ id: 'R2' });
 
-    const res5 = roomManager.joinRoom('player-5', mockWs, 'Joueur 5', 'FULL-ROOM');
-    expect(res5.success).toBe(false);
-    expect(res5.reason).toContain('complète');
+    roomManager.destroyAll();
+    expect(roomManager.listRooms().length).toBe(0);
   });
 });
-
-describe('RoomManager - Tests d\'intégration réseau multi-salles', () => {
-  let socketManager: SocketManager;
-  let port: number;
-  const activeClients: TestClient[] = [];
-
-  const createClient = async (): Promise<TestClient> => {
-    const client = new TestClient(port);
-    activeClients.push(client);
-    await client.waitForOpen();
-    await client.waitForMessage((m) => m.type === 'WELCOME');
-    return client;
-  };
-
-  beforeEach(async () => {
-    socketManager = new SocketManager(0);
-    await socketManager.waitUntilReady();
-    port = socketManager.getPort();
-  });
-
-  afterEach(async () => {
-    for (const client of activeClients) {
-      client.terminate();
-    }
-    activeClients.length = 0;
-    await socketManager.close();
-  });
-
-  it('devrait répondre à CREATE_ROOM avec ROOM_CREATED et lister la salle via LIST_ROOMS', async () => {
-    const client = await createClient();
-
-    client.send({ type: 'CREATE_ROOM', payload: { name: 'Partie Entre Amis' } });
-    const createdMsg = await client.waitForMessage((m) => m.type === 'ROOM_CREATED');
-
-    expect(createdMsg.type).toBe('ROOM_CREATED');
-    if (createdMsg.type === 'ROOM_CREATED') {
-      expect(createdMsg.payload.roomId).toBeDefined();
-      expect(createdMsg.payload.name).toBe('Partie Entre Amis');
-
-      client.send({ type: 'LIST_ROOMS' });
-      const listMsg = await client.waitForMessage((m) => m.type === 'ROOM_LIST');
-      expect(listMsg.type).toBe('ROOM_LIST');
-      if (listMsg.type === 'ROOM_LIST') {
-        const found = listMsg.payload.rooms.find((r) => r.id === createdMsg.payload.roomId);
-        expect(found).toBeDefined();
-        expect(found?.name).toBe('Partie Entre Amis');
-      }
-    }
-  });
-
-  it('devrait isoler hermétiquement deux parties se déroulant dans deux salles différentes', async () => {
-    // Salle Alpha : 2 joueurs
-    const clientA1 = await createClient();
-    const clientA2 = await createClient();
-    // Salle Beta : 2 joueurs
-    const clientB1 = await createClient();
-    const clientB2 = await createClient();
-
-    // Connexion dans la salle ALPHA
-    clientA1.send({ type: 'JOIN', payload: { name: 'Alpha 1', roomId: 'ROOM-ALPHA' } });
-    clientA2.send({ type: 'JOIN', payload: { name: 'Alpha 2', roomId: 'ROOM-ALPHA' } });
-
-    // Connexion dans la salle BETA
-    clientB1.send({ type: 'JOIN', payload: { name: 'Beta 1', roomId: 'ROOM-BETA' } });
-    clientB2.send({ type: 'JOIN', payload: { name: 'Beta 2', roomId: 'ROOM-BETA' } });
-
-    // Attente des LOBBY_STATE dans Alpha
-    const lobbyA = await clientA1.waitForMessage(
-      (m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2 && m.payload.roomId === 'ROOM-ALPHA'
-    );
-    expect(lobbyA.type).toBe('LOBBY_STATE');
-    if (lobbyA.type === 'LOBBY_STATE') {
-      expect(lobbyA.payload.players.map((p) => p.name)).toEqual(['Alpha 1', 'Alpha 2']);
-    }
-
-    // Attente des LOBBY_STATE dans Beta
-    const lobbyB = await clientB1.waitForMessage(
-      (m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2 && m.payload.roomId === 'ROOM-BETA'
-    );
-    expect(lobbyB.type).toBe('LOBBY_STATE');
-    if (lobbyB.type === 'LOBBY_STATE') {
-      expect(lobbyB.payload.players.map((p) => p.name)).toEqual(['Beta 1', 'Beta 2']);
-    }
-
-    // Lancer la partie UNIQUEMENT dans la salle Alpha
-    clientA1.send({ type: 'READY', payload: { isReady: true } });
-    clientA2.send({ type: 'READY', payload: { isReady: true } });
-
-    const gameStartA = await clientA1.waitForMessage((m) => m.type === 'GAME_START');
-    expect(gameStartA.type).toBe('GAME_START');
-
-    // Les joueurs de Beta NE DOIVENT PAS avoir démarré
-    const roomBeta = socketManager.getRoomManager().getRoom('ROOM-BETA');
-    expect(roomBeta?.engine.obtenirEtatActuel().status).toBe('WAITING');
-
-    // Les joueurs de Alpha ont bien démarré
-    const roomAlpha = socketManager.getRoomManager().getRoom('ROOM-ALPHA');
-    expect(roomAlpha?.engine.obtenirEtatActuel().status).toBe('IN_PROGRESS');
-  });
-
-  it('devrait envoyer un message ERROR si un joueur tente de rejoindre une partie déjà en cours', async () => {
-    const client1 = await createClient();
-    const client2 = await createClient();
-    const clientLate = await createClient();
-
-    client1.send({ type: 'JOIN', payload: { name: 'J1', roomId: 'FAST-ROOM' } });
-    client2.send({ type: 'JOIN', payload: { name: 'J2', roomId: 'FAST-ROOM' } });
-
-    await client1.waitForMessage((m) => m.type === 'LOBBY_STATE' && m.payload.players.length === 2);
-
-    client1.send({ type: 'READY', payload: { isReady: true } });
-    client2.send({ type: 'READY', payload: { isReady: true } });
-    await client1.waitForMessage((m) => m.type === 'GAME_START');
-
-    // Client retardataire tente de rejoindre la salle FAST-ROOM en cours
-    clientLate.send({ type: 'JOIN', payload: { name: 'Late', roomId: 'FAST-ROOM' } });
-    const errorMsg = await clientLate.waitForMessage((m) => m.type === 'ERROR');
-
-    expect(errorMsg.type).toBe('ERROR');
-    if (errorMsg.type === 'ERROR') {
-      expect(errorMsg.payload.message).toContain('cours');
-    }
-  });
-});
-
