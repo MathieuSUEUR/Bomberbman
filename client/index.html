@@ -43,6 +43,22 @@
             </div>
           </div>
 
+          <div class="form-group">
+            <label for="room-id-input" class="form-label">Code du Salon (optionnel)</label>
+            <div class="input-wrapper">
+              <span class="input-icon" aria-hidden="true">🚪</span>
+              <input
+                type="text"
+                id="room-id-input"
+                class="text-input"
+                placeholder="ex: ROOM-1234 (laisser vide pour salon principal)"
+                maxlength="16"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+          </div>
+
           <div class="menu-actions">
             <button id="btn-join-game" class="btn btn-primary btn-large">
               <span class="btn-icon" aria-hidden="true">🎮</span>
@@ -76,7 +92,7 @@
           <div class="lobby-title-wrap">
             <div class="mini-bomb" aria-hidden="true">💣</div>
             <div>
-              <h2 class="lobby-title">Salon d'attente</h2>
+              <h2 class="lobby-title">Salon d'attente <span id="lobby-room-code" class="lobby-room-code"></span></h2>
               <p id="lobby-subtitle" class="lobby-desc">En attente d'autres joueurs...</p>
             </div>
           </div>

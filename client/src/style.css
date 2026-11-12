@@ -487,6 +487,13 @@ kbd {
   color: #fff;
 }
 
+.lobby-room-code {
+  font-size: 14px;
+  color: #ffb703;
+  margin-left: 8px;
+  font-weight: 600;
+}
+
 .lobby-desc {
   font-size: 13px;
   color: var(--text-muted);

@@ -109,8 +109,8 @@ export class SocketManager {
   private setupEventListeners(): void {
     // Rejoindre le lobby
     eventBus.on('JOIN_LOBBY', (payload: unknown) => {
-      const data = payload as { name: string };
-      this.sendToServer({ type: 'JOIN', payload: { name: data.name } });
+      const data = payload as { name: string; roomId?: string };
+      this.sendToServer({ type: 'JOIN', payload: { name: data.name, roomId: data.roomId } });
     });
 
     // Mettre à jour le statut prêt

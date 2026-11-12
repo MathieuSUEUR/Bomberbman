@@ -6,6 +6,7 @@ import { eventBus } from './core/EventBus';
 import { calculateMovementDelta } from './core/movement';
 import { InputManager } from './core/InputManager';
 import { SocketManager } from './network/SocketManager';
+import type { LobbyStatePayload } from '@bomberman/shared';
 
 // 1. Initialisation de l'affichage du Canvas
 // 1. Initialisation de l'affichage du Canvas et du HUD
@@ -38,6 +39,7 @@ const gameContainer = document.getElementById('game-container')!;
 const gameCanvas = document.getElementById('game-canvas')!;
 
 const playerNameInput = document.getElementById('player-name-input') as HTMLInputElement;
+const roomIdInput = document.getElementById('room-id-input') as HTMLInputElement | null;
 const btnJoinGame = document.getElementById('btn-join-game')!;
 const btnStartMock = document.getElementById('btn-start-mock')!;
 
@@ -49,6 +51,7 @@ const btnLeaveGame = document.getElementById('btn-leave-game');
 const playersList = document.getElementById('players')!;
 const playerCount = document.getElementById('player-count');
 const lobbySubtitle = document.getElementById('lobby-subtitle');
+const lobbyRoomCode = document.getElementById('lobby-room-code');
 const currentPlayerLabel = document.getElementById('current-player-label');
 const currentPlayerStatus = document.getElementById('current-player-status');
 const serverStatusDot = document.getElementById('server-status-dot');
@@ -156,12 +159,15 @@ btnJoinGame.addEventListener('click', () => {
   currentPseudo = enteredName && enteredName.length > 0 ? enteredName : 'Joueur 1';
   isMockMode = false;
 
+  const enteredRoom = roomIdInput?.value.trim();
+  const roomId = enteredRoom && enteredRoom.length > 0 ? enteredRoom : undefined;
+
   if (currentPlayerLabel) {
     currentPlayerLabel.textContent = `${currentPseudo} (Toi)`;
   }
 
   // Notifier le serveur WebSocket de l'arrivée du joueur
-  eventBus.emit('JOIN_LOBBY', { name: currentPseudo });
+  eventBus.emit('JOIN_LOBBY', { name: currentPseudo, roomId });
 
   // Affichage du salon d'attente
   showScreen('lobby');
@@ -241,20 +247,15 @@ eventBus.on('WELCOME', (payload: unknown) => {
   }
 });
 
-interface LobbyPlayer {
-  id: string;
-  name: string;
-  isReady: boolean;
-}
 
-interface LobbyStatePayload {
-  players: LobbyPlayer[];
-  canStart: boolean;
-}
 
 eventBus.on('LOBBY_STATE', (payload: unknown) => {
   const data = payload as LobbyStatePayload;
   if (!data?.players) return;
+
+  if (lobbyRoomCode) {
+    lobbyRoomCode.textContent = data.roomId ? `[${data.roomId}]` : '';
+  }
 
   if (playerCount) {
     playerCount.textContent = String(data.players.length);
@@ -367,6 +368,16 @@ setInterval(() => {
     eventBus.emit('GAME_STATE_UPDATE', mockGameState);
   }
 }, 1000 / 60);
+
+eventBus.on('SERVER_ERROR', (payload: unknown) => {
+  const data = payload as { message?: string };
+  if (data?.message) {
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+      window.alert(data.message);
+    }
+    showScreen('menu');
+  }
+});
 
 // État initial : afficher le menu principal
 showScreen('menu');
